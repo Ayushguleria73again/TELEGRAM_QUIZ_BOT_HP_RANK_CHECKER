@@ -21,6 +21,49 @@ function checkRateLimit(userId) {
 // Admin ID for manual triggers
 const ADMIN_ID = process.env.ADMIN_ID;
 
+// Set Bot Commands Menu
+bot.setMyCommands([
+    { command: 'start', description: '🚀 Start the bot & see welcome message' },
+    { command: 'help', description: '❓ View all available commands & rules' },
+    { command: 'me', description: '👤 View your professional stats & rank' },
+    { command: 'leaderboard', description: '🏆 View global rankings' },
+    { command: 'challenge', description: '⚔️ Challenge someone to a 1v1 duel' },
+    { command: 'info', description: '📅 View daily quiz schedule' },
+    { command: 'id', description: '🆔 Get your Telegram ID' }
+]).catch(err => console.error('Error setting commands:', err));
+
+// Start command
+bot.onText(/\/start/, (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
+    const welcomeMsg = `🚀 *Welcome to the Elite Quiz Bot!* 🏆\n\n` +
+        `I am your professional HP Rank assistant. I host competitive daily quizzes, track your performance, and manage 1v1 duels!\n\n` +
+        `✨ *What can I do?*\n` +
+        `• 🌅 *Daily Quizzes:* 3 sessions every day (Morning, Afternoon, Evening).\n` +
+        `• 🔥 *Streaks:* Play daily to build your participation streak.\n` +
+        `• ⚔️ *Duels:* Challenge anyone with \`/challenge @username\`.\n` +
+        `• 📈 *Analytics:* See your accuracy and best subjects with \`/me\`.\n\n` +
+        `Type /help to see the full list of commands and start your journey to *Rank Master*! 👑`;
+    bot.sendMessage(msg.chat.id, welcomeMsg, { parse_mode: 'Markdown' });
+});
+
+// Help command
+bot.onText(/\/help/, (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
+    const helpText = `❓ *Quiz Bot Help & Commands*\n\n` +
+        `👤 *User Commands:*\n` +
+        `• /me - Your rank, stats, coins, and streaks.\n` +
+        `• /leaderboard - View Weekly, Monthly, and All-Time Top 10.\n` +
+        `• /challenge @user - Start a private 1v1 battle.\n` +
+        `• /info - See the daily 08:00, 14:00, 20:00 schedule.\n` +
+        `• /id - Get your Telegram ID (useful for support).\n\n` +
+        `🎮 *Game Rules:*\n` +
+        `1. Quizzes start automatically based on the schedule.\n` +
+        `2. You have 15-20 seconds to answer each question.\n` +
+        `3. Your rank increases as you earn more points.\n\n` +
+        `🛡️ *Note:* There is a 2-second anti-spam cooldown on all commands.`;
+    bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
+});
+
 // Help user get Chat ID
 bot.onText(/\/id/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
