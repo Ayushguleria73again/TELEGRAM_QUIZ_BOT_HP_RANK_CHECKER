@@ -1,0 +1,362 @@
+[
+    {
+        "question": "Who was the Chief Guest for India's 75th Republic Day parade in 2024?",
+        "options": [
+            "Emmanuel Macron",
+            "Joe Biden",
+            "Abdel Fattah el-Sisi",
+            "Anthony Albanese"
+        ],
+        "correctIndex": 0,
+        "explanation": "French President Emmanuel Macron was the Chief Guest for Republic Day 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which state's tableau won the first prize at the Republic Day 2024 parade?",
+        "options": [
+            "Gujarat",
+            "Odisha",
+            "Tamil Nadu",
+            "Uttar Pradesh"
+        ],
+        "correctIndex": 1,
+        "explanation": "Odisha's tableau won the first prize in the judges' choice category at Republic Day 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who was awarded the Bharat Ratna posthumously in early 2024 for his role in Bihar politics?",
+        "options": [
+            "Karpoori Thakur",
+            "Lal Krishna Advani",
+            "Chaudhary Charan Singh",
+            "P. V. Narasimha Rao"
+        ],
+        "correctIndex": 0,
+        "explanation": "Former Bihar CM Karpoori Thakur was awarded the Bharat Ratna posthumously in January 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country won the ICC Men's T20 World Cup 2024?",
+        "options": [
+            "South Africa",
+            "India",
+            "Australia",
+            "England"
+        ],
+        "correctIndex": 1,
+        "explanation": "India defeated South Africa in the final to win their second T20 World Cup title.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who became the highest goal scorer in international football history (as of 2024)?",
+        "options": [
+            "Lionel Messi",
+            "Cristiano Ronaldo",
+            "Sunil Chhetri",
+            "Kylian Mbappe"
+        ],
+        "correctIndex": 1,
+        "explanation": "Cristiano Ronaldo holds the record for most international goals scored.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which team won the IPL 2024 title?",
+        "options": [
+            "Sunrisers Hyderabad",
+            "Chennai Super Kings",
+            "Kolkata Knight Riders",
+            "Rajasthan Royals"
+        ],
+        "correctIndex": 2,
+        "explanation": "KKR defeated SRH in the final to lift the IPL 2024 trophy.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of India's first solar mission launched by ISRO?",
+        "options": [
+            "Solar-A",
+            "Aditya L1",
+            "Surya Mission",
+            "Helios-1"
+        ],
+        "correctIndex": 1,
+        "explanation": "Aditya L1 is India's first observatory-class space-based solar mission.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian state launched the 'Lakhpati Didi' scheme for women empowerment?",
+        "options": [
+            "Uttar Pradesh",
+            "Madhya Pradesh",
+            "Rajasthan",
+            "Chhattisgarh"
+        ],
+        "correctIndex": 0,
+        "explanation": "Lakhpati Didi is a national mission to empower 3 crore SHG women with high income (UP & others active).",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the Prime Minister of the United Kingdom as of late 2024?",
+        "options": [
+            "Rishi Sunak",
+            "Keir Starmer",
+            "Boris Johnson",
+            "Liz Truss"
+        ],
+        "correctIndex": 1,
+        "explanation": "Keir Starmer became UK PM in July 2024 after the Labour Party's victory.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country hosted the COP28 Climate Summit?",
+        "options": [
+            "Egypt",
+            "UAE",
+            "Azerbaijan",
+            "Brazil"
+        ],
+        "correctIndex": 1,
+        "explanation": "COP28 was held in Dubai, UAE in late 2023-early 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of the new Parliament building of India?",
+        "options": [
+            "Sansad Bhavan",
+            "Central Vista",
+            "Bharat Mandapam",
+            "Yashobhoomi"
+        ],
+        "correctIndex": 0,
+        "explanation": "The new Parliament building was inaugurated in May 2023 and is part of the Central Vista project.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who won the Men's Singles title at the Australian Open 2025?",
+        "options": [
+            "Novak Djokovic",
+            "Jannik Sinner",
+            "Carlos Alcaraz",
+            "Daniil Medvedev"
+        ],
+        "correctIndex": 1,
+        "explanation": "Jannik Sinner won the 2025 Australian Open men's singles title.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian film's song 'Naatu Naatu' won an Oscar in 2023?",
+        "options": [
+            "RRR",
+            "Pushpa",
+            "Brahmastra",
+            "Pathaan"
+        ],
+        "correctIndex": 0,
+        "explanation": "The song 'Naatu Naatu' from the movie RRR won the Oscar for Best Original Song.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the current President of the Maldives (as of 2024-25)?",
+        "options": [
+            "Ibrahim Mohamed Solih",
+            "Mohamed Muizzu",
+            "Abdulla Yameen",
+            "Mohamed Nasheed"
+        ],
+        "correctIndex": 1,
+        "explanation": "Mohamed Muizzu assumed office as President of Maldives in November 2023.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country recently joined NATO as its 32nd member in 2024?",
+        "options": [
+            "Finland",
+            "Sweden",
+            "Ukraine",
+            "Ireland"
+        ],
+        "correctIndex": 1,
+        "explanation": "Sweden officially became the 32nd member of NATO in March 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the theme of BRICS Summit 2024 held in Russia?",
+        "options": [
+            "BRICS and Africa",
+            "Strengthening Multilateralism",
+            "Unity for Global Progress",
+            "Inclusive Growth"
+        ],
+        "correctIndex": 1,
+        "explanation": "The 16th BRICS Summit in Kazan, Russia, focused on strengthening multilateralism.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the first Indian woman to win two individual Olympic medals?",
+        "options": [
+            "Saina Nehwal",
+            "P.V. Sindhu",
+            "Mary Kom",
+            "Manu Bhaker"
+        ],
+        "correctIndex": 1,
+        "explanation": "P.V. Sindhu was the first (Rio Silver, Tokyo Bronze). Manu Bhaker became the first to win 2 in a single edition (Paris 2024).",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which airport was named the 'World's Best Airport' in 2024 by Skytrax?",
+        "options": [
+            "Hamad International (Doha)",
+            "Changi Airport (Singapore)",
+            "Incheon Airport",
+            "Haneda Airport"
+        ],
+        "correctIndex": 0,
+        "explanation": "Hamad International Airport in Doha was named the world's best airport in 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of the NASA-ISRO joint satellite to be launched in 2025?",
+        "options": [
+            "NISAR",
+            "INSAT-4",
+            "EOS-07",
+            "Gaganyaan-S"
+        ],
+        "correctIndex": 0,
+        "explanation": "NISAR (NASA-ISRO Synthetic Aperture Radar) is a major joint Earth-observing mission.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian state has the first fully functional Smart High Court?",
+        "options": [
+            "Kerala",
+            "Gujarat",
+            "Telangana",
+            "Odisha"
+        ],
+        "correctIndex": 1,
+        "explanation": "The Gujarat High Court inaugurated hybrid hearing systems and smart infrastructure.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who won the Dada Saheb Phalke Award in 2023?",
+        "options": [
+            "Waheeda Rehman",
+            "Asha Parekh",
+            "Rajinikanth",
+            "Amitabh Bachchan"
+        ],
+        "correctIndex": 0,
+        "explanation": "Legendary actress Waheeda Rehman was honored with the Dada Saheb Phalke Award.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which city is the host of the 2026 Commonwealth Games?",
+        "options": [
+            "Glasgow",
+            "Victoria",
+            "Birmingham",
+            "Gold Coast"
+        ],
+        "correctIndex": 0,
+        "explanation": "Glasgow (Scotland) stepped in to host the 2026 Commonwealth Games.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the current Secretary-General of the United Nations?",
+        "options": [
+            "Ban Ki-moon",
+            "Antonio Guterres",
+            "Kofi Annan",
+            "Tedros Adhanom"
+        ],
+        "correctIndex": 1,
+        "explanation": "Antonio Guterres serves as the 9th Secretary-General of the UN.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country launched the world's first fourth-generation nuclear reactor in 2023-24?",
+        "options": [
+            "USA",
+            "Russia",
+            "China",
+            "France"
+        ],
+        "correctIndex": 2,
+        "explanation": "China began commercial operations of the Shidao Bay nuclear plant.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of the indigenously developed anti-tank guided missile tested by DRDO in 2024?",
+        "options": [
+            "Nag",
+            "Dhruvastra",
+            "Prithvi",
+            "Akash"
+        ],
+        "correctIndex": 1,
+        "explanation": "Dhruvastra is the helicopter-launched version of the Nag anti-tank missile.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian city is known as the 'Yoga Capital of the World' and hosts the International Yoga Festival?",
+        "options": [
+            "Varanasi",
+            "Rishikesh",
+            "Haridwar",
+            "Mysuru"
+        ],
+        "correctIndex": 1,
+        "explanation": "Rishikesh is globally recognized as the Yoga Capital.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the current chairperson of the 16th Finance Commission of India?",
+        "options": [
+            "N.K. Singh",
+            "Arvind Panagariya",
+            "Shaktikanta Das",
+            "C. Rangarajan"
+        ],
+        "correctIndex": 1,
+        "explanation": "Dr. Arvind Panagariya was appointed as the chairman of the 16th Finance Commission.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country will host the 2026 FIFA World Cup?",
+        "options": [
+            "USA, Canada & Mexico",
+            "France & Germany",
+            "Saudi Arabia",
+            "Australia & NZ"
+        ],
+        "correctIndex": 0,
+        "explanation": "The 2026 FIFA World Cup will be jointly hosted by three North American nations.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of the scheme launched to provide free electricity through rooftop solar?",
+        "options": [
+            "PM Solar Scheme",
+            "PM-Surya Ghar: Muft Bijli Yojana",
+            "Solar India Mission",
+            "Bijli Bachao Abhiyan"
+        ],
+        "correctIndex": 1,
+        "explanation": "PM-Surya Ghar provides up to 300 units of free monthly electricity via solar panels.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who won the Miss Universe 2024 title?",
+        "options": [
+            "R'Bonney Gabriel",
+            "Victoria Kjær Theilvig",
+            "Sheynnis Palacios",
+            "Harnaaz Sandhu"
+        ],
+        "correctIndex": 1,
+        "explanation": "Victoria Kjær Theilvig of Denmark was crowned Miss Universe 2024.",
+        "category": "Current Affairs"
+    }
+]

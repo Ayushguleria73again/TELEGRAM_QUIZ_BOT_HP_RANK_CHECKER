@@ -113,7 +113,7 @@ const startQuiz = async (options = {}) => {
 
             // Register poll in session for score tracking
             session.questions.push({
-                pollId: poll.poll_id,
+                pollId: poll.poll.id,
                 correctIndex: q.correctIndex,
                 category: q.category
             });

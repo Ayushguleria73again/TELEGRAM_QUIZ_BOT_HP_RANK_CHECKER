@@ -538,6 +538,8 @@ bot.on('poll_answer', async (answer) => {
                     telegramId: userId.toString()
                 };
                 userScore.score += 1;
+                // Ensure telegramId is set even if not present in existing record
+                userScore.telegramId = userId.toString();
                 session.scores.set(userId.toString(), userScore);
                 await session.save();
             }

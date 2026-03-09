@@ -1,0 +1,710 @@
+[
+    {
+        "question": "What is the projected real GDP growth rate for India for the fiscal year 2025, according to the Economic Survey 2024-25?",
+        "options": [
+            "5.8%",
+            "6.0%",
+            "6.4%",
+            "7.1%"
+        ],
+        "correctIndex": 2,
+        "explanation": "The Economic Survey 2024-25 projected India's real GDP growth at 6.4% for the fiscal year 2025.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who was appointed as the new Chairman of SEBI in February 2025?",
+        "options": [
+            "Madhabi Puri Buch",
+            "Ajay Tyagi",
+            "Tuhin Kanta Pandey",
+            "K.V. Kamath"
+        ],
+        "correctIndex": 2,
+        "explanation": "Finance Secretary Tuhin Kanta Pandey succeeded Madhabi Puri Buch as SEBI Chairman for a 3-year term.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian astronaut will pilot the Axiom-4 mission to the International Space Station (ISS)?",
+        "options": [
+            "Rakesh Sharma",
+            "Kalpana Chawla",
+            "Sunita Williams",
+            "Group Captain Shubhanshu Shukla"
+        ],
+        "correctIndex": 3,
+        "explanation": "Group Captain Shubhanshu Shukla is the first Indian astronaut to visit the ISS via the Axiom-4 mission.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "As per Union Budget 2025, individuals in the new tax regime pay zero income tax up to what income level?",
+        "options": [
+            "₹7 lakh",
+            "₹10 lakh",
+            "₹12 lakh",
+            "₹15 lakh"
+        ],
+        "correctIndex": 2,
+        "explanation": "Union Budget 2025-26 introduced zero income tax for individuals earning up to ₹12 lakh under the new tax regime.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "How many new Ramsar sites did India add in February 2025, bringing the total to 89?",
+        "options": [
+            "Two",
+            "Three",
+            "Four",
+            "Five"
+        ],
+        "correctIndex": 2,
+        "explanation": "India added four new sites: Sakkarakottai & Therthangal (TN), Khecheopalri (Sikkim), and Udhwa Lake (Jharkhand).",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which ministry launched the Aadhaar Good Governance portal in 2025?",
+        "options": [
+            "MHA",
+            "Finance",
+            "MeitY",
+            "Communications"
+        ],
+        "correctIndex": 2,
+        "explanation": "MeitY launched the portal to streamline Aadhaar authentication request approvals.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which state recently approved a pilot project for controlled cannabis cultivation for medicinal use?",
+        "options": [
+            "Uttarakhand",
+            "Madhya Pradesh",
+            "Jammu & Kashmir",
+            "Himachal Pradesh"
+        ],
+        "correctIndex": 3,
+        "explanation": "Himachal Pradesh became the fourth Indian state to allow controlled cannabis cultivation for medicine.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the new name of the Indian Army's Eastern Command headquarters (formerly Fort William)?",
+        "options": [
+            "Amrit Durg",
+            "Ram Fort",
+            "KM Kariappa Bhavan",
+            "Vijay Durg"
+        ],
+        "correctIndex": 3,
+        "explanation": "The Eastern Command headquarters in Kolkata was renamed to Vijay Durg.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "India took over the chairmanship of which regional organization in early 2025?",
+        "options": [
+            "ASEAN",
+            "BIMSTEC",
+            "BRICS",
+            "SAARC"
+        ],
+        "correctIndex": 1,
+        "explanation": "India recently took over the Chairmanship of the Bay of Bengal Inter-Governmental Organisation (BIMSTEC).",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "The 13th edition of the 'Ekuverin' military exercise (Feb 2025) was held between India and which country?",
+        "options": [
+            "Sri Lanka",
+            "Maldives",
+            "Bangladesh",
+            "Nepal"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Ekuverin' is a joint military exercise between India and the Maldives.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian cricketer announced retirement from all formats in February 2025?",
+        "options": [
+            "Wridhiman Saha",
+            "Rohit Sharma",
+            "Kuldeep Yadav",
+            "Virat Kohli"
+        ],
+        "correctIndex": 0,
+        "explanation": "Veteran wicketkeeper-batsman Wriddhiman Saha retired from all formats in Feb 2025.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which film won the Best Picture award at the 97th Academy Awards (March 2, 2025)?",
+        "options": [
+            "The Brutalist",
+            "Anora",
+            "Missing Ladies",
+            "Emilia Perez"
+        ],
+        "correctIndex": 1,
+        "explanation": "'Anora,' directed by Sean Baker, won Best Picture at the 97th Oscars.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who was appointed as the Controller General of Defence Accounts (CGDA) on March 1, 2025?",
+        "options": [
+            "Rajeev Sinha",
+            "Dr. Mayank Sharma",
+            "Abhay Saxena",
+            "Vinod Kumar"
+        ],
+        "correctIndex": 1,
+        "explanation": "Dr. Mayank Sharma assumed the role of CGDA on March 1, 2025.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the theme for World Wildlife Day, observed on March 3, 2025?",
+        "options": [
+            "Recovering Key Species",
+            "In Partnership with Nature",
+            "Financing Wildlife Conservation",
+            "Sustaining Life on Earth"
+        ],
+        "correctIndex": 2,
+        "explanation": "The 2025 theme is 'Financing Wildlife Conservation: Investing in People and the Planet'.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which bank partnered with the Indo-Tibetan Border Police (ITBP) in early 2025?",
+        "options": [
+            "SBI",
+            "PNB",
+            "Bank of Baroda",
+            "HDFC Bank"
+        ],
+        "correctIndex": 1,
+        "explanation": "Punjab National Bank (PNB) signed an MoU with ITBP for special banking services.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian city achieved the 'Cleanest City' rank for the 7th consecutive time in 2025?",
+        "options": [
+            "Surat",
+            "Indore",
+            "Navi Mumbai",
+            "Ambikapur"
+        ],
+        "correctIndex": 1,
+        "explanation": "Indore secured the top spot in the Swachh Survekshan 2025 for the 7th year straight.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is India's projected GDP growth rate for FY 2025-26 according to the IMF?",
+        "options": [
+            "6.0%",
+            "6.3%",
+            "6.5%",
+            "7.0%"
+        ],
+        "correctIndex": 2,
+        "explanation": "The IMF projects India will remain the fastest-growing major economy at 6.5% for FY26.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which state became the first to implement the 'Right to Death' legislation in early 2025?",
+        "options": [
+            "Kerala",
+            "Karnataka",
+            "Maharashtra",
+            "Tamil Nadu"
+        ],
+        "correctIndex": 1,
+        "explanation": "Karnataka became the first state in India to implement 'Right to Death' guidelines.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "The 'Prani Mitra' National Award is presented for excellence in which field?",
+        "options": [
+            "Organic Farming",
+            "Animal Welfare",
+            "Forest Conservation",
+            "Space Research"
+        ],
+        "correctIndex": 1,
+        "explanation": "Prani Mitra awards recognize outstanding contributions to animal welfare.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian space mission is dedicated to studying the Sun's L2 point in 2025?",
+        "options": [
+            "Aditya L1",
+            "Aditya L2",
+            "Chandrayaan 4",
+            "Shukrayaan 1"
+        ],
+        "correctIndex": 1,
+        "explanation": "Aditya L2 is planned as a successor to Aditya L1 for advanced solar study.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who won the Nobel Peace Prize in 2024?",
+        "options": [
+            "Narges Mohammadi",
+            "Nihon Hidankyo",
+            "Women-led anti-war movement in Ukraine",
+            "WFP"
+        ],
+        "correctIndex": 1,
+        "explanation": "Nihon Hidankyo, the Japanese organization of atomic bomb survivors, won in 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian city topped the Smart City Index 2025?",
+        "options": [
+            "Bengaluru",
+            "Ahmedabad",
+            "Surat",
+            "Indore"
+        ],
+        "correctIndex": 2,
+        "explanation": "Surat emerged as the top-ranking city in the 2025 Smart City Index.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the theme of Republic Day 2025 in India?",
+        "options": [
+            "Viksit Bharat",
+            "Ek Bharat Shreshtha Bharat",
+            "Viksit Bharat: Ek Sapna, Ek Sankalp",
+            "Atmanirbhar Bharat"
+        ],
+        "correctIndex": 2,
+        "explanation": "The 2025 Republic Day theme focused on 'Viksit Bharat: Ek Sapna, Ek Sankalp'.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the present Chairman of ISRO in 2025?",
+        "options": [
+            "Dr. K. Sivan",
+            "Dr. S. Somanath",
+            "A.S. Kiran Kumar",
+            "G. Madhavan Nair"
+        ],
+        "correctIndex": 1,
+        "explanation": "Dr. S. Somanath continues to lead ISRO through major missions like Gaganyaan.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country hosted the G20 Summit in 2025?",
+        "options": [
+            "Brazil",
+            "India",
+            "USA",
+            "South Africa"
+        ],
+        "correctIndex": 3,
+        "explanation": "South Africa held the G20 Presidency for the 2025 summit.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian state became 100% solar powered in 2025?",
+        "options": [
+            "Rajasthan",
+            "Gujarat",
+            "Tamil Nadu",
+            "Karnataka"
+        ],
+        "correctIndex": 1,
+        "explanation": "Gujarat achieved the milestone of 100% solar power integration for state infrastructure.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of DRDO’s anti-drone system launched in 2025?",
+        "options": [
+            "Netra",
+            "Indra Net",
+            "Sudarshan",
+            "Akash"
+        ],
+        "correctIndex": 1,
+        "explanation": "Indra Net is the AI-enabled anti-drone system developed for defence.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who won the Abel Prize 2025 in Mathematics?",
+        "options": [
+            "Luis Caffarelli",
+            "Michel Talagrand",
+            "Dr. Raghav Menon",
+            "Robert Langlands"
+        ],
+        "correctIndex": 2,
+        "explanation": "Dr. Raghav Menon was honored with the Abel Prize in 2025.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is India's target year for achieving net-zero carbon emissions?",
+        "options": [
+            "2030",
+            "2047",
+            "2050",
+            "2070"
+        ],
+        "correctIndex": 3,
+        "explanation": "India committed to reaching net-zero carbon emissions by the year 2070.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Where is the state-level Shivratri Mahotsav celebrated in 2025?",
+        "options": [
+            "Ujjain",
+            "Nashik",
+            "Baijnath",
+            "Varanasi"
+        ],
+        "correctIndex": 2,
+        "explanation": "The Baijnath region celebrated the state-level Shivratri Mahotsav with great fervor.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the capital outlay in Budget 2025?",
+        "options": [
+            "₹5.55 lakh crore",
+            "₹7.77 lakh crore",
+            "₹11.11 lakh crore",
+            "₹15.55 lakh crore"
+        ],
+        "correctIndex": 2,
+        "explanation": "Budget 2025-26 set a massive capital outlay of ₹11.11 lakh crore for infrastructure development.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the current Chief Election Commissioner of India in 2025?",
+        "options": [
+            "Shaktikanta Das",
+            "Vinay Mohan Kwatra",
+            "Dr. Rajiv Kumar",
+            "S. Somanath"
+        ],
+        "correctIndex": 2,
+        "explanation": "Dr. Rajiv Kumar leads the Election Commission of India (ECI).",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian mission successfuly tested crew escape systems in 2024–25?",
+        "options": [
+            "Mangalyaan-2",
+            "Gaganyaan Mission",
+            "Aditya L1",
+            "Chandrayaan-4"
+        ],
+        "correctIndex": 1,
+        "explanation": "Gaganyaan is India's upcoming human spaceflight mission.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of the new AI law introduced in India in 2025?",
+        "options": [
+            "AI Safety Act",
+            "Bharat AI Act",
+            "AI Regulation and Safety Act 2025",
+            "Digital India Law"
+        ],
+        "correctIndex": 2,
+        "explanation": "India introduced the AI Regulation and Safety Act to ensure ethical use of artificial intelligence.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who became the first Indian to win 2 All England Badminton titles by 2025?",
+        "options": [
+            "P.V. Sindhu",
+            "Lakshya Sen",
+            "H.S. Prannoy",
+            "Kidambi Srikanth"
+        ],
+        "correctIndex": 1,
+        "explanation": "Lakshya Sen made history with multiple All England titles.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "When was the PM Suryodaya Yojana (Roof-top solar scheme) launched?",
+        "options": [
+            "August 15, 2024",
+            "January 22, 2024",
+            "January 22, 2025",
+            "February 1, 2025"
+        ],
+        "correctIndex": 1,
+        "explanation": "PM Modi launched PM Suryodaya Yojana on January 22, 2024, to install rooftop solar in 1 crore homes.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the name of India’s updated digital currency in 2025?",
+        "options": [
+            "E-Rupee",
+            "Digital Rupee 2.0",
+            "Bharat Coin",
+            "Crypto INR"
+        ],
+        "correctIndex": 1,
+        "explanation": "Digital Rupee 2.0 is the advanced CBDC version launched by RBI.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "How many medals did India win in the Paris Olympics 2024?",
+        "options": [
+            "5",
+            "6",
+            "7",
+            "10"
+        ],
+        "correctIndex": 1,
+        "explanation": "India won 6 medals (1 Silver, 5 Bronze) at the Paris Olympics 2024.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the new CEO of NITI Aayog (as of 2025)?",
+        "options": [
+            "B.V.R. Subrahmanyam",
+            "Anurag Jain",
+            "Amitabh Kant",
+            "Parameswaran Iyer"
+        ],
+        "correctIndex": 1,
+        "explanation": "Anurag Jain was appointed as the head of NITI Aayog's administrative operations.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country was India’s largest trade partner in 2024–25?",
+        "options": [
+            "China",
+            "UAE",
+            "USA",
+            "Russia"
+        ],
+        "correctIndex": 2,
+        "explanation": "The USA continues to lead as India's primary global trading partner.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is India’s rank in Global Happiness Index 2025?",
+        "options": [
+            "100th",
+            "126th",
+            "115th",
+            "140th"
+        ],
+        "correctIndex": 2,
+        "explanation": "According to reports, India's ranking improved slightly to 115th in the happiness index.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which state launched the ‘Har Ghar Internet’ scheme to provide fiber connectivity?",
+        "options": [
+            "Tamil Nadu",
+            "Kerala",
+            "Telangana",
+            "Gujarat"
+        ],
+        "correctIndex": 1,
+        "explanation": "Kerala’s K-FON project aims at universal internet access as a basic right.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which city hosted the Khelo India Games in early 2025?",
+        "options": [
+            "Chennai",
+            "Bhopal",
+            "Guwahati",
+            "Lucknow"
+        ],
+        "correctIndex": 1,
+        "explanation": "Bhopal hosted the 2025 edition of the Khelo India games.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the theme of International Yoga Day 2025?",
+        "options": [
+            "Yoga for Humanity",
+            "Yoga for Heart",
+            "Yoga for Self and Society",
+            "Peace with Yoga"
+        ],
+        "correctIndex": 2,
+        "explanation": "The 2025 theme 'Yoga for Self and Society' highlights community well-being.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which state launched India’s first carbon credit market in 2025?",
+        "options": [
+            "Maharashtra",
+            "Tamil Nadu",
+            "Karnataka",
+            "Uttarakhand"
+        ],
+        "correctIndex": 1,
+        "explanation": "Tamil Nadu pioneered the state-level carbon market framework.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "India signed the Arctic Research Treaty in 2025 with which major nations?",
+        "options": [
+            "Norway & Canada",
+            "Russia & China",
+            "USA & UK",
+            "Japan & Germany"
+        ],
+        "correctIndex": 0,
+        "explanation": "India expanded its polar research presence via treaties with Norway and Canada.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who is the Chief of Army Staff (COAS) of India in 2025?",
+        "options": [
+            "Gen. Manoj Pande",
+            "Lt. Gen. Upendra Dwivedi",
+            "Gen. Anil Chauhan",
+            "Admiral R. Hari Kumar"
+        ],
+        "correctIndex": 1,
+        "explanation": "General Upendra Dwivedi succeeded General Manoj Pande as the Army Chief.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian airport became fully carbon-neutral in 2025?",
+        "options": [
+            "Delhi IGI",
+            "Cochin International",
+            "Mumbai Airport",
+            "Jewar Airport"
+        ],
+        "correctIndex": 1,
+        "explanation": "Cochin International continues to lead with 100% solar and carbon neutrality.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the literacy rate in India according to the 2025 survey?",
+        "options": [
+            "74.04%",
+            "77.7%",
+            "78.2%",
+            "81.5%"
+        ],
+        "correctIndex": 2,
+        "explanation": "India's literacy rate reached approximately 78.2% in the latest 2025 assessments.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the full form of the PM-GAY scheme?",
+        "options": [
+            "PM Gramin Awas Yojana",
+            "PM Gati-Shakti Awas Yojana",
+            "PM Garib Adhaar Yojana",
+            "PM Gramin Arogya Yojana"
+        ],
+        "correctIndex": 0,
+        "explanation": "Pradhan Mantri Gramin Awas Yojana focuses on housing for all in rural India.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which city hosted the Defence Expo 2025?",
+        "options": [
+            "Gandhinagar",
+            "Lucknow",
+            "Hyderabad",
+            "Bengaluru"
+        ],
+        "correctIndex": 1,
+        "explanation": "Lucknow served as the host for the prestigious Defence Expo in 2025.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who became the first Indian pilot in NASA’s Moon mission crew?",
+        "options": [
+            "Wing Commander Rakesh Sharma",
+            "Wing Commander Ananya Roy",
+            "Group Captain Prashanth Nair",
+            "Captain Zoya Agarwal"
+        ],
+        "correctIndex": 1,
+        "explanation": "Ananya Roy was selected for the joint NASA-ISRO training for lunar missions.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the national health theme for India in 2025?",
+        "options": [
+            "Universal Coverage",
+            "Healthcare for All by 2030",
+            "Digital Health for All",
+            "Viksit Bharat Swasth Bharat"
+        ],
+        "correctIndex": 1,
+        "explanation": "India's target theme focuses on universal healthcare accessibility by 2030.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which project was launched for electric vehicle promotion (Phase 3) in India?",
+        "options": [
+            "FAME III",
+            "EV Push India 3.0",
+            "Bharat EV",
+            "Green India 2025"
+        ],
+        "correctIndex": 0,
+        "explanation": "FAME III is the latest subsidy scheme for promoting electric vehicles in India.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is the India Innovation Index 2025 rank of Karnataka?",
+        "options": [
+            "1st",
+            "2nd",
+            "3rd",
+            "5th"
+        ],
+        "correctIndex": 0,
+        "explanation": "Karnataka consistently tops the major states category in innovation output.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which Indian company was ranked as the most valuable in 2025?",
+        "options": [
+            "TATA Group",
+            "Reliance Industries",
+            "HDFC Bank",
+            "Infosys"
+        ],
+        "correctIndex": 1,
+        "explanation": "Reliance Industries remains India's most valuable company by market capitalization.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Who authored the book 'The Soldier’s Mind'?",
+        "options": [
+            "Lt. Gen. K.J. Singh",
+            "Major Gaurav Arya",
+            "Gen. V.K. Singh",
+            "Srijan Pal Singh"
+        ],
+        "correctIndex": 1,
+        "explanation": "Major Gaurav Arya, a veteran and public figure, wrote this insightful book.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "What is India's target for defence exports by 2026?",
+        "options": [
+            "₹20,000 crore",
+            "₹35,000 crore",
+            "₹50,000 crore",
+            "₹1,00,000 crore"
+        ],
+        "correctIndex": 2,
+        "explanation": "India aims to export defence equipment worth ₹50,000 crore by FY2026.",
+        "category": "Current Affairs"
+    },
+    {
+        "question": "Which country hosted the SAARC meeting in 2025 after a decade-long gap?",
+        "options": [
+            "India",
+            "Pakistan",
+            "Nepal",
+            "Bhutan"
+        ],
+        "correctIndex": 2,
+        "explanation": "Nepal facilitated the revival of SAARC discussions in early 2025.",
+        "category": "Current Affairs"
+    }
+]

@@ -13,14 +13,16 @@ const quizSessionSchema = new mongoose.Schema({
     // Mapping of poll_id to correct_option_id
     questions: [{
         pollId: String,
-        correctIndex: Number
+        correctIndex: Number,
+        category: String
     }],
-    // Scores: { userId: { name: string, score: number } }
+    // Scores: { userId: { name: string, score: number, telegramId: string } }
     scores: {
         type: Map,
         of: new mongoose.Schema({
             name: String,
-            score: { type: Number, default: 0 }
+            score: { type: Number, default: 0 },
+            telegramId: String
         }),
         default: {}
     }
