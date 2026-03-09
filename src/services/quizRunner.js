@@ -200,4 +200,20 @@ const startQuiz = async (options = {}) => {
     }
 };
 
-module.exports = { startQuiz };
+const sendCountdown = async (sessionName, minutesLeft) => {
+    if (!CHANNEL_ID) return;
+
+    const emoji = minutesLeft === 5 ? '🔔' : '🚀';
+    const message = `${emoji} *GET READY!* ${emoji}\n\n` +
+        `🏆 The *${sessionName}* is starting in *${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}*!\n\n` +
+        `🏁 Join the group now to secure your rank!`;
+
+    try {
+        await bot.sendMessage(CHANNEL_ID, message, { parse_mode: 'Markdown' });
+        console.log(`Sent ${minutesLeft}min countdown for ${sessionName}`);
+    } catch (err) {
+        console.error('Error sending countdown:', err);
+    }
+};
+
+module.exports = { startQuiz, sendCountdown };
