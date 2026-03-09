@@ -609,6 +609,34 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
     user.stats.categoryStats.set(category, catStat);
 
     user.lastActivity = new Date();
+
+    // --- Rank Milestone Logic (Level-Up Rewards) ---
+    const { getRankDetails } = require('../utils/rankUtils');
+    const newRank = getRankDetails(user.totalScore);
+    const channelId = process.env.CHANNEL_ID;
+
+    // Check thresholds
+    const thresholds = [
+        { points: 500, title: 'Scholar' },
+        { points: 2000, title: 'Expert' },
+        { points: 5000, title: 'Rank Master' }
+    ];
+
+    for (const mil of thresholds) {
+        if (user.totalScore >= mil.points && !user.unlockedRanks.includes(mil.title)) {
+            user.unlockedRanks.push(mil.title);
+
+            // Send celebration to Group
+            const celebMsg = `🎊 *RANK UP! LEVEL REACHED!* 🎊\n\n` +
+                `Everyone congratulate *${fullName}* for reaching the *${mil.title}* rank! ${newRank.emoji}\n\n` +
+                `Keep playing to reach the next tier! 🚀🏁`;
+
+            bot.sendMessage(channelId, celebMsg, { parse_mode: 'Markdown' }).catch(err => {
+                console.error('Error sending rank-up celebration:', err);
+            });
+        }
+    }
+
     await user.save();
 }
 

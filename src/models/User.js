@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    unlockedRanks: {
+        type: [String],
+        default: []
+    },
     lastActivity: {
         type: Date,
         default: Date.now
