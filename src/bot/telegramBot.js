@@ -51,7 +51,7 @@ bot.onText(/\/help/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const helpText = `❓ *Quiz Bot Help & Commands*\n\n` +
         `👤 *User Commands:*\n` +
-        `• /me - Your rank, stats, coins, and streaks.\n` +
+        `• /me - Your rank, stats, and streaks.\n` +
         `• /leaderboard - View Weekly, Monthly, and All-Time Top 10.\n` +
         `• /challenge @user - Start a private 1v1 battle.\n` +
         `• /info - See the daily 08:00, 14:00, 20:00 schedule.\n` +
