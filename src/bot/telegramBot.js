@@ -52,6 +52,48 @@ bot.onText(/\/info/, (msg) => {
     bot.sendMessage(msg.chat.id, infoText, { parse_mode: 'Markdown' });
 });
 
+// Personal info command
+bot.onText(/\/me/, async (msg) => {
+    const userId = msg.from.id;
+    const User = require('../models/User');
+    const { getRankDetails } = require('../utils/rankUtils');
+
+    try {
+        const user = await User.findOne({ telegramId: userId.toString() });
+        if (!user || user.totalScore === 0) {
+            return bot.sendMessage(msg.chat.id, "❌ You haven't earned any points yet! Participate in the next quiz to start your journey. 🚀");
+        }
+
+        const rank = getRankDetails(user.totalScore);
+
+        let nextRankText = "";
+        const tiers = [
+            { min: 500, title: 'Scholar', emoji: '📚' },
+            { min: 2000, title: 'Expert', emoji: '🧠' },
+            { min: 5000, title: 'Rank Master', emoji: '👑' }
+        ];
+
+        const nextTier = tiers.find(t => user.totalScore < t.min);
+        if (nextTier) {
+            const diff = nextTier.min - user.totalScore;
+            nextRankText = `\n\n🎯 *Next Goal:* ${diff} points to reach *${nextTier.title}* ${nextTier.emoji}`;
+        } else {
+            nextRankText = `\n\n👑 You have reached the highest rank! You are a *Rank Master*!`;
+        }
+
+        const profileText = `👤 *Your Profile*\n\n` +
+            `🏆 *Current Rank:* ${rank.title} ${rank.emoji}\n` +
+            `✨ *Total Points:* ${user.totalScore}\n` +
+            `📊 *Weekly Score:* ${user.weeklyScore}\n` +
+            `🌟 *Monthly Score:* ${user.monthlyScore}` +
+            nextRankText;
+
+        bot.sendMessage(msg.chat.id, profileText, { parse_mode: 'Markdown' });
+    } catch (err) {
+        console.error('Error fetching user profile:', err);
+    }
+});
+
 // Manual start command
 bot.onText(/\/startquiz/, async (msg) => {
     const chatId = msg.chat.id;
@@ -224,12 +266,14 @@ bot.on('callback_query', async (callbackQuery) => {
                 message_id: message.message_id
             });
         } else {
+            const { getRankDetails } = require('../utils/rankUtils');
             let lbText = `✨ *${title}* ✨\n\n`;
             const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
             topUsers.forEach((user, idx) => {
                 const name = user.firstName + (user.lastName ? ` ${user.lastName}` : '');
-                lbText += `${medals[idx]} *${name}*: ${user[sortField]} pts\n`;
+                const rank = getRankDetails(user.totalScore);
+                lbText += `${medals[idx]} ${rank.emoji} *${name}*: ${user[sortField]} pts\n`;
             });
 
             bot.editMessageText(lbText, {
@@ -281,7 +325,11 @@ bot.on('poll_answer', async (answer) => {
         const question = session.questions.find(q => q.pollId === pollId);
         if (question && selectedOption === question.correctIndex) {
             // 1. Update Session Score (for current quiz leaderboard)
-            const userScore = session.scores.get(userId.toString()) || { name: fullName, score: 0 };
+            const userScore = session.scores.get(userId.toString()) || {
+                name: fullName,
+                score: 0,
+                telegramId: userId.toString()
+            };
             userScore.score += 1;
             session.scores.set(userId.toString(), userScore);
             await session.save();

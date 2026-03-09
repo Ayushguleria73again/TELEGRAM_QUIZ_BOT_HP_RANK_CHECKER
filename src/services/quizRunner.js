@@ -165,12 +165,19 @@ const startQuiz = async (options = {}) => {
             .slice(0, 5);
 
         if (scoreArray.length > 0) {
+            const User = require('../models/User');
+            const { getRankDetails } = require('../utils/rankUtils');
             let leaderboardMsg = "🏆 *Quiz Leaderboard (Top 5)*\n\n";
             const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
 
-            scoreArray.forEach((user, idx) => {
-                leaderboardMsg += `${medals[idx]} *${user.name}*: ${user.score} points\n`;
-            });
+            for (let idx = 0; idx < scoreArray.length; idx++) {
+                const result = scoreArray[idx];
+                // Fetch user from DB for total score
+                const userInDb = await User.findOne({ telegramId: result.telegramId });
+                const rank = getRankDetails(userInDb ? userInDb.totalScore : 0);
+
+                leaderboardMsg += `${medals[idx]} ${rank.emoji} *${result.name}*: ${result.score} points\n`;
+            }
 
             await bot.sendMessage(CHANNEL_ID, leaderboardMsg, { parse_mode: 'Markdown' });
         }
