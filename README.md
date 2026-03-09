@@ -1,73 +1,92 @@
-# 🏆 HP Rank Checker Quiz Bot
+# 🏆 HP Rank Checker: The Elite Quiz Platform
 
-A powerful, automated Telegram Quiz Bot designed for competitive exam aspirants. Features real-time leaderboards, daily scheduling, and automated group management.
+A high-performance, professional Telegram Quiz Bot built for competitive communities. Beyond just a quiz bot, this is a gamified learning ecosystem featuring 1v1 duels, complex social rankings, and deep performance analytics.
+
+---
 
 ## 🚀 Key Features
 
-- **📅 Automated Scheduling**: Quizzes run daily at your preferred time (IST).
-- **🏆 Global Hall of Fame**: Persistent Weekly, Monthly, and All-Time leaderboards.
-- **🤫 Quiz Mute Mode**: Automatically restricts group messages during active quizzes to prevent distractions.
-- **💡 Embedded Explanations**: Instant learning with high-quality hints inside every poll.
-- **⚙️ Interactive Admin Menu**: Change quiz time, categories, and question counts directly from Telegram.
-- **🔍 Anti-Repetition Logic**: Fisher-Yates shuffle and usage tracking ensure fresh questions every session.
+### 1. ⚔️ Battle Mode (1v1 Duels)
+*   Challenge any group member using `/challenge @username`.
+*   Private, high-intensity 5-question rounds.
+*   Automated victory announcements in the main group chat.
+
+### 2. 📈 Professional Analytics & Streaks
+*   **Daily Streaks (🔥):** Tracks consecutive days of participation to build loyalty.
+*   **Performance Metrics:** Category-wise accuracy (e.g., "90% in History") and "Best Subject" identification.
+*   **Digital Profile:** Comprehensive `/me` command showing rank, total points, and current win-rates.
+
+### 3. 🎓 Dynamic Ranking System
+*   **Tiers:** Aspirant 🎓 → Scholar 📚 → Expert 🧠 → Rank Master 👑.
+*   **Milestone Celebrations:** Real-time group announcements when a user reaches a new rank.
+*   **Monthly Hall of Fame:** Automated ceremonies and score resets on the 1st of every month.
+
+### 4. 📅 Automated Ecosystem
+*   **Triple Sessions:** Morning (08:00 AM), Afternoon (02:00 PM), and Evening (08:00 PM) IST.
+*   **Countdown Alerts:** 5-minute and 1-minute warnings before every quiz.
+*   **Mute Mode:** Automatically restricts chat during quizzes to ensure focus.
+
+### 5. 🛠️ Robust Infrastructure
+*   **Admin Dashboard:** Interactive `/settings` menu to change time, categories, and question counts dynamically.
+*   **Hint System:** Embedded "💡" hints inside polls for instant educational feedback.
+*   **Anti-Spam:** Integrated 2-second rate limiter for high stability.
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Node.js & Express.js
-- **Database**: MongoDB (Mongoose)
+- **Runtime**: Node.js & Express.js
+- **Database**: MongoDB Atlas (Persistent Cloud Storage)
 - **Bot Framework**: `node-telegram-bot-api`
-- **Scheduler**: `node-cron`
+- **Automation**: `node-cron` & `node-cron`
+
+---
 
 ## 📦 Installation & Setup
 
-1. **Clone the repository**:
+1. **Clone & Install**:
    ```bash
    git clone <your-repo-url>
-   cd quiz-bot-for-telegram
-   ```
-
-2. **Install dependencies**:
-   ```bash
    npm install
    ```
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
+2. **Environment Configuration (`.env`)**:
    ```env
-   TELEGRAM_BOT_TOKEN=your_bot_token
-   MONGODB_URI=your_mongodb_connection_string
-   CHANNEL_ID=your_group_chat_id (starts with -100)
-   ADMIN_ID=your_personal_telegram_user_id
-   QUIZ_TIME=20:00
+   TELEGRAM_BOT_TOKEN=...
+   MONGODB_URI=...
+   CHANNEL_ID=... (Group ID starting with -100)
+   ADMIN_ID=... (Your user ID)
    PORT=3000
    ```
 
-4. **Seed the Database**:
+3. **Data Management**:
    ```bash
-   node seed.js
+   node seedQuestions.js  # Populates initial GK bank
+   npm start              # Production launch
    ```
 
-5. **Start the Bot**:
-   ```bash
-   npm run dev
-   ```
+---
 
 ## 🎮 Bot Commands
 
-| Command | Description | Permission |
+| Command | Description | Level |
 | :--- | :--- | :--- |
-| `/start` | Start the bot | Everyone |
-| `/leaderboard` | View Hall of Fame (Weekly/Monthly/All-time) | Everyone |
-| `/id` | Get the current Chat ID | Everyone |
-| `/settings` | Open interactive settings menu | Admin |
-| `/startquiz` | Trigger a quiz session manually | Admin |
-
-## ⚙️ Administration
-
-To manage the bot, use the `/settings` command. You can:
-- **Set Quiz Time**: Update when the daily quiz triggers.
-- **Select Categories**: Filter questions (e.g., History, Science, Polity).
-- **Adjust Count**: Set between 5 to 60 questions per session.
+| `/start` | Onboarding guide for new users | Everyone |
+| `/me` | View your Ranks, Stats, and Streaks | Everyone |
+| `/leaderboard` | View Weekly/Monthly/All-Time rankings | Everyone |
+| `/challenge @user` | Initiate a 1v1 duel | Everyone |
+| `/info` | View the daily quiz schedule | Everyone |
+| `/help` | Detailed command list and rules | Everyone |
+| `/settings` | Admin: Change Time/Categories/Question Count | Admin |
+| `/startquiz` | Admin: Trigger a manual quiz session | Admin |
 
 ---
-Created with ❤️ by **HP Rank Checker Team**
+
+## 👑 Maintenance & Reset Cycles
+
+- **Weekly Reset**: Every Monday at 00:00 AM (Weekly scores clear).
+- **Monthly Reset**: 1st of every Month (A championship ceremony is posted).
+- **Permanent Records**: All-Time Hall of Fame never resets.
+
+---
+Created with ❤️ by **The Elite Quiz Team**
