@@ -66,6 +66,22 @@ bot.onText(/\/me/, async (msg) => {
 
         const rank = getRankDetails(user.totalScore);
 
+        // Calculate Accuracy
+        const accuracy = user.stats.totalAttempted > 0
+            ? ((user.stats.totalCorrect / user.stats.totalAttempted) * 100).toFixed(1)
+            : 0;
+
+        // Find Best Category
+        let bestCategory = "None";
+        let bestAcc = 0;
+        user.stats.categoryStats.forEach((val, key) => {
+            const acc = (val.correct / val.attempted) * 100;
+            if (acc > bestAcc && val.attempted >= 5) {
+                bestAcc = acc;
+                bestCategory = key;
+            }
+        });
+
         let nextRankText = "";
         const tiers = [
             { min: 500, title: 'Scholar', emoji: '📚' },
@@ -81,11 +97,16 @@ bot.onText(/\/me/, async (msg) => {
             nextRankText = `\n\n👑 You have reached the highest rank! You are a *Rank Master*!`;
         }
 
-        const profileText = `👤 *Your Profile*\n\n` +
+        const profileText = `👤 *Your Professional Profile*\n\n` +
             `🏆 *Current Rank:* ${rank.title} ${rank.emoji}\n` +
-            `✨ *Total Points:* ${user.totalScore}\n` +
-            `📊 *Weekly Score:* ${user.weeklyScore}\n` +
-            `🌟 *Monthly Score:* ${user.monthlyScore}` +
+            `🔥 *Daily Streak:* ${user.currentStreak} days\n` +
+            `✨ *Total Points:* ${user.totalScore}\n\n` +
+            `📊 *Performance Analytics:*\n` +
+            `• Accuracy: ${accuracy}%\n` +
+            `• Attempted: ${user.stats.totalAttempted}\n` +
+            `• Best Subject: ${bestCategory}${bestAcc > 0 ? ` (${bestAcc.toFixed(0)}%)` : ''}\n\n` +
+            `🌟 *Monthly Score:* ${user.monthlyScore}\n` +
+            `📊 *Weekly Score:* ${user.weeklyScore}` +
             nextRankText;
 
         bot.sendMessage(msg.chat.id, profileText, { parse_mode: 'Markdown' });
@@ -107,6 +128,48 @@ bot.onText(/\/startquiz/, async (msg) => {
 
     if (status === 'RUNNING') {
         bot.sendMessage(chatId, "⚠️ A quiz is already in progress. Please wait for it to finish.");
+    }
+});
+
+// Battle Mode: Challenge Command
+bot.onText(/\/challenge (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const challengerId = msg.from.id.toString();
+    const challengerName = (msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : '')).trim();
+    const targetUsername = match[1].replace('@', '').trim();
+
+    const User = require('../models/User');
+    const Battle = require('../models/Battle');
+
+    try {
+        const challengedUser = await User.findOne({ username: new RegExp(`^${targetUsername}$`, 'i') });
+        if (!challengedUser) {
+            return bot.sendMessage(chatId, `❌ I couldn't find *${targetUsername}*. They must have used the bot at least once to be challenged!`, { parse_mode: 'Markdown' });
+        }
+
+        if (challengedUser.telegramId === challengerId) {
+            return bot.sendMessage(chatId, "🤝 You can't challenge yourself! Find a worthy opponent. 😉");
+        }
+
+        const options = {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [[
+                    { text: "✅ Accept", callback_data: `battle_accept_${challengerId}_${challengedUser.telegramId}` },
+                    { text: "❌ Decline", callback_data: `battle_decline_${challengerId}_${challengedUser.telegramId}` }
+                ]]
+            }
+        };
+
+        const inviteMsg = `⚔️ *QUIZ DUEL CHALLENGE!* ⚔️\n\n` +
+            `*${challengerName}* has challenged *${challengedUser.firstName}* (@${targetUsername}) to a 1v1 HP Rank Battle!\n\n` +
+            `🔹 Questions: 5\n` +
+            `🔹 Category: Random Mix\n\n` +
+            `*${challengedUser.firstName}*, do you accept the challenge?`;
+
+        bot.sendMessage(chatId, inviteMsg, options);
+    } catch (err) {
+        console.error('Error initiating challenge:', err);
     }
 });
 
@@ -285,6 +348,74 @@ bot.on('callback_query', async (callbackQuery) => {
                 }
             });
         }
+    } else if (data.startsWith('battle_accept_') || data.startsWith('battle_decline_')) {
+        const parts = data.split('_');
+        const action = parts[1];
+        const challengerId = parts[2];
+        const challengedId = parts[3];
+
+        if (callbackQuery.from.id.toString() !== challengedId) {
+            return bot.answerCallbackQuery(callbackQuery.id, { text: "⚠️ Only the challenged person can respond!", show_alert: true });
+        }
+
+        const Battle = require('../models/Battle');
+        const Question = require('../models/Question');
+
+        if (action === 'decline') {
+            await bot.editMessageText("❌ Challenge Declined.", { chat_id: chatId, message_id: message.message_id });
+            return;
+        }
+
+        // --- ACCEPTED ---
+        try {
+            const questions = await Question.aggregate([{ $sample: { size: 5 } }]);
+            const questionData = questions.map(q => ({ questionId: q._id, correctIndex: q.correctIndex }));
+
+            const battle = new Battle({
+                challengerId,
+                challengerName: "", // We will populate these or use existing info
+                challengedId,
+                challengedName: callbackQuery.from.first_name,
+                groupChatId: chatId,
+                status: 'ACCEPTED',
+                questions: questionData
+            });
+
+            // Get names for display
+            const User = require('../models/User');
+            const cUser = await User.findOne({ telegramId: challengerId });
+            battle.challengerName = cUser ? cUser.firstName : "Challenger";
+            await battle.save();
+
+            await bot.editMessageText("⚔️ *DUEL STARTED!* Check your private messages!", {
+                chat_id: chatId,
+                message_id: message.message_id,
+                parse_mode: 'Markdown'
+            });
+
+            // Start the private duel by sending the first question to both
+            const firstQId = questions[0].questionId;
+            const qObj = await Question.findById(firstQId);
+
+            const sendBattlePoll = async (pId, qText, options, cIdx, qNum) => {
+                const poll = await bot.sendPoll(pId, `Round ${qNum}/5: ${qText}`, options, {
+                    type: 'quiz',
+                    correct_option_id: cIdx,
+                    is_anonymous: false,
+                    open_period: 20
+                });
+                return poll.poll_id;
+            };
+
+            const p1Id = await sendBattlePoll(challengerId, qObj.question, qObj.options, qObj.correctIndex, 1);
+            const p2Id = await sendBattlePoll(challengedId, qObj.question, qObj.options, qObj.correctIndex, 1);
+
+            battle.pollIds.set(p1Id, challengerId);
+            battle.pollIds.set(p2Id, challengedId);
+            await battle.save();
+        } catch (err) {
+            console.error('Error starting battle:', err);
+        }
     } else if (data === 'lb_main') {
         bot.editMessageText("🏆 *Global Hall of Fame*\nSelect the leaderboard you want to view:", {
             chat_id: chatId,
@@ -317,41 +448,145 @@ bot.on('poll_answer', async (answer) => {
 
     try {
         const QuizSession = require('../models/QuizSession');
-        const User = require('../models/User'); // Import User model
+        const User = require('../models/User');
+        const Battle = require('../models/Battle');
+        const Question = require('../models/Question');
+
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+        // --- A. CHECK FOR GROUP QUIZ SESSION ---
         const session = await QuizSession.findOne({ isActive: true, 'questions.pollId': pollId });
 
-        if (!session) return;
+        if (session) {
+            const question = session.questions.find(q => q.pollId === pollId);
+            if (!question) return;
 
-        const question = session.questions.find(q => q.pollId === pollId);
-        if (question && selectedOption === question.correctIndex) {
-            // 1. Update Session Score (for current quiz leaderboard)
-            const userScore = session.scores.get(userId.toString()) || {
-                name: fullName,
-                score: 0,
-                telegramId: userId.toString()
-            };
-            userScore.score += 1;
-            session.scores.set(userId.toString(), userScore);
-            await session.save();
+            const isCorrect = selectedOption === question.correctIndex;
+            const category = question.category || 'General';
 
-            // 2. Update Persistent User Score (for Weekly/Monthly Hall of Fame)
-            await User.findOneAndUpdate(
-                { telegramId: userId.toString() },
-                {
-                    $inc: { totalScore: 1, weeklyScore: 1, monthlyScore: 1 },
-                    $set: {
-                        username: username,
-                        firstName: firstName,
-                        lastName: lastName,
-                        lastActivity: new Date()
-                    }
-                },
-                { upsert: true, new: true }
-            );
+            if (isCorrect) {
+                const userScore = session.scores.get(userId.toString()) || {
+                    name: fullName,
+                    score: 0,
+                    telegramId: userId.toString()
+                };
+                userScore.score += 1;
+                session.scores.set(userId.toString(), userScore);
+                await session.save();
+            }
+
+            await updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, category, today, yesterday);
+            return;
         }
+
+        // --- B. CHECK FOR 1v1 BATTLE ---
+        const battle = await Battle.findOne({ status: 'ACCEPTED', [`pollIds.${pollId}`]: { $exists: true } });
+        if (battle) {
+            const isChallenger = battle.challengerId === userId.toString();
+            const currentIndex = isChallenger ? battle.challengerIndex : battle.challengedIndex;
+            const currentQ = battle.questions[currentIndex];
+            const isCorrect = selectedOption === currentQ.correctIndex;
+
+            if (isCorrect) {
+                if (isChallenger) battle.challengerScore += 1;
+                else battle.challengedScore += 1;
+            }
+
+            // Move to next question or finish
+            if (currentIndex < 4) {
+                const nextIndex = currentIndex + 1;
+                if (isChallenger) battle.challengerIndex = nextIndex;
+                else battle.challengedIndex = nextIndex;
+
+                const nextQData = battle.questions[nextIndex];
+                const qObj = await Question.findById(nextQData.questionId);
+
+                const nextPoll = await bot.sendPoll(userId, `Round ${nextIndex + 1}/5: ${qObj.question}`, qObj.options, {
+                    type: 'quiz',
+                    correct_option_id: qObj.correctIndex,
+                    is_anonymous: false,
+                    open_period: 20
+                });
+
+                battle.pollIds.set(nextPoll.poll_id, userId.toString());
+            } else {
+                if (isChallenger) battle.challengerFinished = true;
+                else battle.challengedFinished = true;
+                bot.sendMessage(userId, "🏁 You have finished your duel! Waiting for your opponent...");
+            }
+
+            await battle.save();
+
+            // Check if both finished to announce winner
+            if (battle.challengerFinished && battle.challengedFinished) {
+                let resultText = `🏆 *DUEL RESULTS!* 🏆\n\n` +
+                    `*${battle.challengerName}* vs *${battle.challengedName}*\n\n` +
+                    `📊 Score: ${battle.challengerScore} - ${battle.challengedScore}\n\n`;
+
+                if (battle.challengerScore > battle.challengedScore) {
+                    resultText += `🥇 Winner: *${battle.challengerName}*! 🎉`;
+                } else if (battle.challengedScore > battle.challengerScore) {
+                    resultText += `🥇 Winner: *${battle.challengedName}*! 🎉`;
+                } else {
+                    resultText += `🤝 It's a DRAW! Well played both. ✨`;
+                }
+
+                bot.sendMessage(battle.groupChatId, resultText, { parse_mode: 'Markdown' });
+                battle.status = 'COMPLETED';
+                await battle.save();
+            }
+
+            // Also update all-time stats for battles!
+            await updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, 'Duel', today, yesterday);
+        }
+
     } catch (err) {
         console.error('Error processing poll answer:', err);
     }
 });
+
+// Helper Function for User Stats
+async function updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, category, today, yesterday) {
+    const User = require('../models/User');
+    let user = await User.findOne({ telegramId: userId.toString() });
+    if (!user) {
+        user = new User({
+            telegramId: userId.toString(),
+            firstName, lastName, username
+        });
+    }
+
+    // Streak Logic
+    if (user.lastParticipationDate !== today) {
+        if (user.lastParticipationDate === yesterday) {
+            user.currentStreak += 1;
+        } else {
+            user.currentStreak = 1;
+        }
+        if (user.currentStreak > user.longestStreak) {
+            user.longestStreak = user.currentStreak;
+        }
+        user.lastParticipationDate = today;
+    }
+
+    // Stats Logic
+    user.stats.totalAttempted += 1;
+    if (isCorrect) {
+        user.stats.totalCorrect += 1;
+        user.totalScore += 1;
+        user.weeklyScore += 1;
+        user.monthlyScore += 1;
+    }
+
+    // Category Stats Logic
+    const catStat = user.stats.categoryStats.get(category) || { correct: 0, attempted: 0 };
+    catStat.attempted += 1;
+    if (isCorrect) catStat.correct += 1;
+    user.stats.categoryStats.set(category, catStat);
+
+    user.lastActivity = new Date();
+    await user.save();
+}
 
 module.exports = bot;

@@ -112,7 +112,11 @@ const startQuiz = async (options = {}) => {
             });
 
             // Register poll in session for score tracking
-            session.questions.push({ pollId: poll.poll_id, correctIndex: q.correctIndex });
+            session.questions.push({
+                pollId: poll.poll_id,
+                correctIndex: q.correctIndex,
+                category: q.category
+            });
             await session.save();
 
             // Update lastUsed date

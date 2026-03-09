@@ -56,6 +56,42 @@ const initScheduler = async () => {
     }, { timezone: "Asia/Kolkata" });
 
     console.log('✅ Triple Session Scheduler with Countdowns Initialized (08:00, 14:00, 20:00 IST)');
+
+    // --- 4. Weekly Reset (Every Monday at 00:00 AM) ---
+    cron.schedule('0 0 * * 1', async () => {
+        console.log('Reseting Weekly Scores...');
+        const User = require('../models/User');
+        await User.updateMany({}, { weeklyScore: 0 });
+    }, { timezone: "Asia/Kolkata" });
+
+    // --- 5. Monthly Winner Ceremony & Reset (1st of every month at 00:01 AM) ---
+    cron.schedule('1 0 1 * *', async () => {
+        console.log('Monthly Ceremony Starting...');
+        const User = require('../models/User');
+        const bot = require('../bot/telegramBot');
+        const { getRankDetails } = require('../utils/rankUtils');
+
+        // Find winner
+        const winner = await User.findOne({ monthlyScore: { $gt: 0 } }).sort({ monthlyScore: -1 });
+
+        if (winner) {
+            const name = (winner.firstName + (winner.lastName ? ` ${winner.lastName}` : '')).trim();
+            const rank = getRankDetails(winner.totalScore);
+            const channelId = process.env.CHANNEL_ID;
+
+            const ceremonyMsg = `👑 *GRAND MONTHLY CEREMONY* 👑\n\n` +
+                `The results are in! The Champion of the Month is:\n\n` +
+                `🏆 *${name}* ${rank.emoji}\n` +
+                `✨ Score: ${winner.monthlyScore} points\n\n` +
+                `Congratulations! You have earned the title of *Monthly Hall of Famer*! 🌟🎉\n\n` +
+                `📅 *Next Month starts NOW!* All monthly scores have been reset. Type /leaderboard to begin the new race! 🏁`;
+
+            bot.sendMessage(channelId, ceremonyMsg, { parse_mode: 'Markdown' });
+        }
+
+        // Reset all monthly scores
+        await User.updateMany({}, { monthlyScore: 0 });
+    }, { timezone: "Asia/Kolkata" });
 };
 
 module.exports = { initScheduler };

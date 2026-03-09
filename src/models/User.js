@@ -24,6 +24,29 @@ const userSchema = new mongoose.Schema({
     lastActivity: {
         type: Date,
         default: Date.now
+    },
+    currentStreak: {
+        type: Number,
+        default: 0
+    },
+    longestStreak: {
+        type: Number,
+        default: 0
+    },
+    lastParticipationDate: {
+        type: String // YYYY-MM-DD
+    },
+    stats: {
+        totalCorrect: { type: Number, default: 0 },
+        totalAttempted: { type: Number, default: 0 },
+        categoryStats: {
+            type: Map,
+            of: {
+                correct: { type: Number, default: 0 },
+                attempted: { type: Number, default: 0 }
+            },
+            default: {}
+        }
     }
 }, {
     timestamps: true
