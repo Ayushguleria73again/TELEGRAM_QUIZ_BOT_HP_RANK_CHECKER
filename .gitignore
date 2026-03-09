@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment Variables
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Project specific
+gk_questions_500.json
+questions.json
+*.json
+!package.json
+!gk_questions_500.json (if you want to keep the primary source in git, but usually JSON data stays out)
