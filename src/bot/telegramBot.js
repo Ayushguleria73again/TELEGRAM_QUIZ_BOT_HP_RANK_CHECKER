@@ -4,16 +4,32 @@ const { getSetting, setSetting } = require('../services/settingsService');
 const { initScheduler } = require('../scheduler/quizScheduler');
 const Question = require('../models/Question');
 
+// Rate Limiting Logic
+const lastCommandTime = new Map();
+const COOLDOWN_MS = 2000; // 2 seconds
+
+function checkRateLimit(userId) {
+    const now = Date.now();
+    const lastTime = lastCommandTime.get(userId) || 0;
+    if (now - lastTime < COOLDOWN_MS) {
+        return true; // Limited
+    }
+    lastCommandTime.set(userId, now);
+    return false; // Allowed
+}
+
 // Admin ID for manual triggers
 const ADMIN_ID = process.env.ADMIN_ID;
 
 // Help user get Chat ID
 bot.onText(/\/id/, (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
     bot.sendMessage(msg.chat.id, `ID of this chat: \`${msg.chat.id}\``, { parse_mode: 'Markdown' });
 });
 
 // Leaderboard command
 bot.onText(/\/leaderboard/, async (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
 
     const options = {
@@ -34,6 +50,7 @@ bot.onText(/\/leaderboard/, async (msg) => {
 
 // Info command
 bot.onText(/\/info/, (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
     const infoText = `📅 *Daily Quiz Schedule (IST)*\n\n` +
         `🌅 *Morning Session (08:00 AM)*\n` +
         `• Focus: General Knowledge (GK)\n` +
@@ -54,6 +71,7 @@ bot.onText(/\/info/, (msg) => {
 
 // Personal info command
 bot.onText(/\/me/, async (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
     const userId = msg.from.id;
     const User = require('../models/User');
     const { getRankDetails } = require('../utils/rankUtils');
@@ -133,6 +151,7 @@ bot.onText(/\/startquiz/, async (msg) => {
 
 // Battle Mode: Challenge Command
 bot.onText(/\/challenge (.+)/, async (msg, match) => {
+    if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
     const challengerId = msg.from.id.toString();
     const challengerName = (msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : '')).trim();
@@ -175,6 +194,7 @@ bot.onText(/\/challenge (.+)/, async (msg, match) => {
 
 // Settings command
 bot.onText(/\/settings/, async (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
 
     if (ADMIN_ID && chatId.toString() !== ADMIN_ID.toString()) {
@@ -208,6 +228,9 @@ bot.onText(/\/settings/, async (msg) => {
 
 // Callback Query Handler for Settings
 bot.on('callback_query', async (callbackQuery) => {
+    if (checkRateLimit(callbackQuery.from.id)) {
+        return bot.answerCallbackQuery(callbackQuery.id, { text: "⚠️ Slow down! Please wait a moment.", show_alert: true });
+    }
     const { data, message } = callbackQuery;
     const chatId = message.chat.id;
 
