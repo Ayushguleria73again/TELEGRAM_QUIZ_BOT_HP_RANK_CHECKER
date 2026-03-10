@@ -101,30 +101,53 @@ const startQuiz = async (options = {}) => {
 
         // 3. Loop through questions
         for (let i = 0; i < selectedQuestions.length; i++) {
-            const q = selectedQuestions[i];
+            try {
+                const q = selectedQuestions[i];
 
-            const poll = await bot.sendPoll(CHANNEL_ID, `${i + 1}. ${q.question}`, q.options, {
-                type: 'quiz',
-                correct_option_id: q.correctIndex,
-                is_anonymous: false, // REQUIRED for leaderboard
-                open_period: timer,
-                explanation: q.explanation.length > 200 ? q.explanation.substring(0, 197) + '...' : q.explanation
-            });
+                let questionText = `${i + 1}. ${q.question}`;
+                if (questionText.length > 300) {
+                    questionText = questionText.substring(0, 297) + '...';
+                }
 
-            // Register poll in session for score tracking
-            session.questions.push({
-                pollId: poll.poll.id,
-                correctIndex: q.correctIndex,
-                category: q.category
-            });
-            await session.save();
+                // Telegram poll explanation limit: 200 characters
+                let explanationText = q.explanation || "";
+                if (explanationText.length > 200) {
+                    explanationText = explanationText.substring(0, 197) + '...';
+                }
 
-            // Update lastUsed date
-            q.lastUsed = new Date();
-            await q.save();
+                const optionsText = q.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
 
-            // Wait for poll to close
-            await delay(timer * 1000);
+                const poll = await bot.sendPoll(CHANNEL_ID, questionText, optionsText, {
+                    type: 'quiz',
+                    correct_option_id: q.correctIndex,
+                    is_anonymous: false, // REQUIRED for leaderboard
+                    open_period: timer,
+                    explanation: explanationText
+                });
+
+                // Register poll in session for score tracking
+                session.questions.push({
+                    pollId: poll.poll.id,
+                    correctIndex: q.correctIndex,
+                    category: q.category
+                });
+                await session.save();
+
+                // Update lastUsed date (gracefully)
+                try {
+                    q.lastUsed = new Date();
+                    await q.save();
+                } catch (saveErr) {
+                    console.error(`Could not update lastUsed for question ${q._id}:`, saveErr.message);
+                }
+
+                // Wait for poll to close
+                await delay(timer * 1000);
+            } catch (qError) {
+                console.error(`Error processing question ${i + 1}:`, qError.message);
+                // Continue with next question
+                await delay(2000);
+            }
         }
 
         // 4. Send Finish Message

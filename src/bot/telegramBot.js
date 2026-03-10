@@ -293,6 +293,8 @@ bot.on('callback_query', async (callbackQuery) => {
             message_id: message.message_id,
             parse_mode: 'Markdown',
             reply_markup: { inline_keyboard: buttons }
+        }).catch(err => {
+            if (!err.message.includes('message is not modified')) console.error('Error editing message:', err.message);
         });
     } else if (data.startsWith('toggle_cat_')) {
         const cat = data.replace('toggle_cat_', '');
@@ -320,6 +322,8 @@ bot.on('callback_query', async (callbackQuery) => {
         bot.editMessageReplyMarkup({ inline_keyboard: buttons }, {
             chat_id: chatId,
             message_id: message.message_id
+        }).catch(err => {
+            if (!err.message.includes('message is not modified')) console.error('Error editing reply markup:', err.message);
         });
     } else if (data === 'main_menu') {
         const quizTime = await getSetting('quizTime') || '20:00';
@@ -344,6 +348,8 @@ bot.on('callback_query', async (callbackQuery) => {
                     [{ text: "🔄 Restart Scheduler", callback_data: "restart_scheduler" }]
                 ]
             }
+        }).catch(err => {
+            if (!err.message.includes('message is not modified')) console.error('Error editing message:', err.message);
         });
     } else if (data === 'set_time') {
         bot.sendMessage(chatId, "⏰ Please send the new quiz time in HH:mm format (e.g., 21:00).");
@@ -412,6 +418,8 @@ bot.on('callback_query', async (callbackQuery) => {
                 reply_markup: {
                     inline_keyboard: [[{ text: "⬅️ Back", callback_data: "lb_main" }]]
                 }
+            }).catch(err => {
+                if (!err.message.includes('message is not modified')) console.error('Error editing leaderboard:', err.message);
             });
         }
     } else if (data.startsWith('battle_accept_') || data.startsWith('battle_decline_')) {
@@ -464,7 +472,12 @@ bot.on('callback_query', async (callbackQuery) => {
             const qObj = await Question.findById(firstQId);
 
             const sendBattlePoll = async (pId, qText, options, cIdx, qNum) => {
-                const poll = await bot.sendPoll(pId, `Round ${qNum}/5: ${qText}`, options, {
+                let truncatedQ = `Round ${qNum}/5: ${qText}`;
+                if (truncatedQ.length > 300) truncatedQ = truncatedQ.substring(0, 297) + '...';
+
+                const truncatedOptions = options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+
+                const poll = await bot.sendPoll(pId, truncatedQ, truncatedOptions, {
                     type: 'quiz',
                     correct_option_id: cIdx,
                     is_anonymous: false,
@@ -496,6 +509,8 @@ bot.on('callback_query', async (callbackQuery) => {
                     [{ text: "🏆 All-Time", callback_data: "lb_alltime" }]
                 ]
             }
+        }).catch(err => {
+            if (!err.message.includes('message is not modified')) console.error('Error editing leaderboard menu:', err.message);
         });
     }
 
@@ -570,7 +585,12 @@ bot.on('poll_answer', async (answer) => {
                 const nextQData = battle.questions[nextIndex];
                 const qObj = await Question.findById(nextQData.questionId);
 
-                const nextPoll = await bot.sendPoll(userId, `Round ${nextIndex + 1}/5: ${qObj.question}`, qObj.options, {
+                let truncatedQ = `Round ${nextIndex + 1}/5: ${qObj.question}`;
+                if (truncatedQ.length > 300) truncatedQ = truncatedQ.substring(0, 297) + '...';
+
+                const truncatedOptions = qObj.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+
+                const nextPoll = await bot.sendPoll(userId, truncatedQ, truncatedOptions, {
                     type: 'quiz',
                     correct_option_id: qObj.correctIndex,
                     is_anonymous: false,
