@@ -7,6 +7,8 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const CHANNEL_ID = process.env.CHANNEL_ID;
+const COMMUNITY_CHANNEL_ID = process.env.COMMUNITY_CHANNEL_ID;
+const GROUP_JOIN_LINK = process.env.GROUP_JOIN_LINK;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -242,6 +244,30 @@ const sendCountdown = async (sessionName, minutesLeft) => {
         console.log(`Sent ${minutesLeft}min countdown for ${sessionName}`);
     } catch (err) {
         console.error('Error sending countdown:', err);
+    }
+
+    // Also notify the community channel
+    if (COMMUNITY_CHANNEL_ID) {
+        const communityMsg = `${emoji} *HP GK Quiz Alert!* ${emoji}\n\n` +
+            `🏆 The *${sessionName}* is starting in *${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}*!\n\n` +
+            `📚 Test your Himachal Pradesh knowledge now!\n` +
+            `🏁 Join our quiz group to participate and climb the ranks! 👑`;
+
+        const communityOptions = { parse_mode: 'Markdown' };
+        if (GROUP_JOIN_LINK) {
+            communityOptions.reply_markup = {
+                inline_keyboard: [
+                    [{ text: '🚀 Join Quiz Group Now!', url: GROUP_JOIN_LINK }]
+                ]
+            };
+        }
+
+        try {
+            await bot.sendMessage(COMMUNITY_CHANNEL_ID, communityMsg, communityOptions);
+            console.log(`Sent community notification for ${sessionName}`);
+        } catch (err) {
+            console.error('Error sending to community channel:', err.message);
+        }
     }
 };
 
