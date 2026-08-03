@@ -34,7 +34,7 @@ bot.setMyCommands([
 ]).catch(err => console.error('Error setting commands:', err));
 
 // Start command
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start(@\w+)?/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const welcomeMsg = `🚀 *Welcome to the Elite Quiz Bot!* 🏆\n\n` +
         `I am your professional HP Rank assistant. I host competitive daily quizzes, track your performance, and manage 1v1 duels!\n\n` +
@@ -48,7 +48,7 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // Help command
-bot.onText(/\/help/, (msg) => {
+bot.onText(/\/help(@\w+)?/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const helpText = `❓ *Quiz Bot Help & Commands*\n\n` +
         `👤 *User Commands:*\n` +
@@ -66,13 +66,13 @@ bot.onText(/\/help/, (msg) => {
 });
 
 // Help user get Chat ID
-bot.onText(/\/id/, (msg) => {
+bot.onText(/\/id(@\w+)?/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     bot.sendMessage(msg.chat.id, `ID of this chat: \`${msg.chat.id}\``, { parse_mode: 'Markdown' });
 });
 
 // Leaderboard command
-bot.onText(/\/leaderboard/, async (msg) => {
+bot.onText(/\/leaderboard(@\w+)?/, async (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
 
@@ -93,7 +93,7 @@ bot.onText(/\/leaderboard/, async (msg) => {
 });
 
 // Info command
-bot.onText(/\/info/, (msg) => {
+bot.onText(/\/info(@\w+)?/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const infoText = `📅 *Daily Himachal Pradesh GK Schedule (IST)*\n\n` +
         `🌅 *Morning Session (08:00 AM)*\n` +
@@ -114,7 +114,7 @@ bot.onText(/\/info/, (msg) => {
 });
 
 // Personal info command
-bot.onText(/\/me/, async (msg) => {
+bot.onText(/\/me(@\w+)?/, async (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const userId = msg.from.id;
     const User = require('../models/User');
@@ -182,7 +182,7 @@ bot.onText(/\/me/, async (msg) => {
 });
 
 // Random Quiz Challenge command
-bot.onText(/\/random/, async (msg) => {
+bot.onText(/\/random(@\w+)?/, async (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
 
@@ -200,21 +200,37 @@ bot.onText(/\/random/, async (msg) => {
         if (explanationText.length > 200) explanationText = explanationText.substring(0, 197) + '...';
 
         const optionsText = q.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+        const openPeriod = 20;
 
         await bot.sendPoll(chatId, qText, optionsText, {
             type: 'quiz',
             correct_option_id: q.correctIndex,
             is_anonymous: false,
-            open_period: 25,
+            open_period: openPeriod,
             explanation: explanationText
         });
+
+        // Automatically reveal answer and explanation when timer ends
+        setTimeout(async () => {
+            const answerReveal = `✅ *Answer & Explanation*\n\n` +
+                `Q: *${q.question}*\n\n` +
+                `✅ *Correct Answer:* ${q.options[q.correctIndex]}\n` +
+                `ℹ️ *Explanation:* ${q.explanation}`;
+
+            try {
+                await bot.sendMessage(chatId, answerReveal, { parse_mode: 'Markdown' });
+            } catch (err) {
+                console.error('Error sending answer reveal:', err.message);
+            }
+        }, (openPeriod + 1) * 1000);
+
     } catch (err) {
         console.error('Error sending random question:', err.message);
     }
 });
 
 // Manual start command
-bot.onText(/\/startquiz/, async (msg) => {
+bot.onText(/\/startquiz(@\w+)?/, async (msg) => {
     const chatId = msg.chat.id;
 
     if (ADMIN_ID && chatId.toString() !== ADMIN_ID.toString()) {
@@ -230,12 +246,12 @@ bot.onText(/\/startquiz/, async (msg) => {
 });
 
 // Battle Mode: Challenge Command
-bot.onText(/\/challenge (.+)/, async (msg, match) => {
+bot.onText(/\/challenge(@\w+)?\s+(.+)/, async (msg, match) => {
     if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
     const challengerId = msg.from.id.toString();
     const challengerName = (msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : '')).trim();
-    const targetUsername = match[1].replace('@', '').trim();
+    const targetUsername = match[2].replace('@', '').trim();
 
     const User = require('../models/User');
     const Battle = require('../models/Battle');
@@ -273,7 +289,7 @@ bot.onText(/\/challenge (.+)/, async (msg, match) => {
 });
 
 // Settings command
-bot.onText(/\/settings/, async (msg) => {
+bot.onText(/\/settings(@\w+)?/, async (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
 
