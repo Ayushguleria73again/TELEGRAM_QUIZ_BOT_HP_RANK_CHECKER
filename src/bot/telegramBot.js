@@ -25,8 +25,9 @@ const ADMIN_ID = process.env.ADMIN_ID;
 bot.setMyCommands([
     { command: 'start', description: '🚀 Start the bot & see welcome message' },
     { command: 'help', description: '❓ View all available commands & rules' },
-    { command: 'me', description: '👤 View your professional stats & rank' },
+    { command: 'me', description: '👤 View your professional stats, rank & badges' },
     { command: 'leaderboard', description: '🏆 View global rankings' },
+    { command: 'random', description: '🎲 Get a random HP GK question instantly' },
     { command: 'challenge', description: '⚔️ Challenge someone to a 1v1 duel' },
     { command: 'info', description: '📅 View daily quiz schedule' },
     { command: 'id', description: '🆔 Get your Telegram ID' }
@@ -158,14 +159,18 @@ bot.onText(/\/me/, async (msg) => {
             nextRankText = `\n\n👑 You have reached the highest rank! You are a *Rank Master*!`;
         }
 
+        const { formatBadges } = require('../utils/badgeUtils');
+        const badgeDisplay = formatBadges(user.badges);
+
         const profileText = `👤 *Your Professional Profile*\n\n` +
             `🏆 *Current Rank:* ${rank.title} ${rank.emoji}\n` +
-            `🔥 *Daily Streak:* ${user.currentStreak} days\n` +
+            `🔥 *Daily Streak:* ${user.currentStreak} days (Best: ${user.longestStreak || user.currentStreak})\n` +
             `✨ *Total Points:* ${user.totalScore}\n\n` +
             `📊 *Performance Analytics:*\n` +
             `• Accuracy: ${accuracy}%\n` +
             `• Attempted: ${user.stats.totalAttempted}\n` +
             `• Best Subject: ${bestCategory}${bestAcc > 0 ? ` (${bestAcc.toFixed(0)}%)` : ''}\n\n` +
+            `🎖️ *Achievement Badges:*\n${badgeDisplay}\n\n` +
             `🌟 *Monthly Score:* ${user.monthlyScore}\n` +
             `📊 *Weekly Score:* ${user.weeklyScore}` +
             nextRankText;
@@ -173,6 +178,38 @@ bot.onText(/\/me/, async (msg) => {
         bot.sendMessage(msg.chat.id, profileText, { parse_mode: 'Markdown' });
     } catch (err) {
         console.error('Error fetching user profile:', err);
+    }
+});
+
+// Random Quiz Challenge command
+bot.onText(/\/random/, async (msg) => {
+    if (checkRateLimit(msg.from.id)) return;
+    const chatId = msg.chat.id;
+
+    try {
+        const questions = await Question.aggregate([{ $sample: { size: 1 } }]);
+        if (questions.length === 0) {
+            return bot.sendMessage(chatId, "⚠️ No HP GK questions available right now.");
+        }
+
+        const q = questions[0];
+        let qText = `🎲 *Instant HP GK Challenge!*\n\n${q.question}`;
+        if (qText.length > 300) qText = qText.substring(0, 297) + '...';
+
+        let explanationText = q.explanation || '';
+        if (explanationText.length > 200) explanationText = explanationText.substring(0, 197) + '...';
+
+        const optionsText = q.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+
+        await bot.sendPoll(chatId, qText, optionsText, {
+            type: 'quiz',
+            correct_option_id: q.correctIndex,
+            is_anonymous: false,
+            open_period: 25,
+            explanation: explanationText
+        });
+    } catch (err) {
+        console.error('Error sending random question:', err.message);
     }
 });
 
@@ -675,12 +712,12 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
 
     user.lastActivity = new Date();
 
+    const channelId = process.env.CHANNEL_ID;
+
     // --- Rank Milestone Logic (Level-Up Rewards) ---
     const { getRankDetails } = require('../utils/rankUtils');
     const newRank = getRankDetails(user.totalScore);
-    const channelId = process.env.CHANNEL_ID;
 
-    // Check thresholds
     const thresholds = [
         { points: 500, title: 'Scholar' },
         { points: 2000, title: 'Expert' },
@@ -691,13 +728,28 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
         if (user.totalScore >= mil.points && !user.unlockedRanks.includes(mil.title)) {
             user.unlockedRanks.push(mil.title);
 
-            // Send celebration to Group
             const celebMsg = `🎊 *RANK UP! LEVEL REACHED!* 🎊\n\n` +
                 `Everyone congratulate *${fullName}* for reaching the *${mil.title}* rank! ${newRank.emoji}\n\n` +
                 `Keep playing to reach the next tier! 🚀🏁`;
 
             bot.sendMessage(channelId, celebMsg, { parse_mode: 'Markdown' }).catch(err => {
                 console.error('Error sending rank-up celebration:', err);
+            });
+        }
+    }
+
+    // --- Check & Award Achievement Badges ---
+    const { checkAndAwardBadges } = require('../utils/badgeUtils');
+    const newBadges = checkAndAwardBadges(user);
+
+    if (newBadges.length > 0) {
+        for (const badge of newBadges) {
+            const badgeMsg = `🎖️ *BADGE UNLOCKED!* 🎖️\n\n` +
+                `Congratulations *${fullName}*! You earned the *${badge.name}* ${badge.emoji} badge!\n` +
+                `_${badge.description}_ 🚀`;
+
+            bot.sendMessage(channelId, badgeMsg, { parse_mode: 'Markdown' }).catch(err => {
+                console.error('Error sending badge announcement:', err);
             });
         }
     }

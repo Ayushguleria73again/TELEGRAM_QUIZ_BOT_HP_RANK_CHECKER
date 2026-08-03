@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
+    badges: {
+        type: [String],
+        default: []
+    },
     lastActivity: {
         type: Date,
         default: Date.now

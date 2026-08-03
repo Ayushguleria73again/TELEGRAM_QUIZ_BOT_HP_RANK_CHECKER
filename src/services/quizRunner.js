@@ -204,6 +204,38 @@ const startQuiz = async (options = {}) => {
             }
 
             await bot.sendMessage(CHANNEL_ID, leaderboardMsg, { parse_mode: 'Markdown' });
+
+            // Post Top 3 results to Community Channel
+            if (COMMUNITY_CHANNEL_ID) {
+                let communityResultsMsg = `🏁 *${options.sessionName || 'HP GK Quiz'} Results!* 🏆\n\n` +
+                    `Congratulations to the top performers of this session:\n\n`;
+
+                const top3 = scoreArray.slice(0, 3);
+                for (let idx = 0; idx < top3.length; idx++) {
+                    const result = top3[idx];
+                    const userInDb = await User.findOne({ telegramId: result.telegramId });
+                    const rank = getRankDetails(userInDb ? userInDb.totalScore : 0);
+                    communityResultsMsg += `${medals[idx]} ${rank.emoji} *${result.name}*: ${result.score} points\n`;
+                }
+
+                communityResultsMsg += `\n📚 Great job everyone! Join our next session to compete and climb the ranks! 👑`;
+
+                const commOptions = { parse_mode: 'Markdown' };
+                if (GROUP_JOIN_LINK) {
+                    commOptions.reply_markup = {
+                        inline_keyboard: [
+                            [{ text: '🚀 Join Quiz Group Now!', url: GROUP_JOIN_LINK }]
+                        ]
+                    };
+                }
+
+                try {
+                    await bot.sendMessage(COMMUNITY_CHANNEL_ID, communityResultsMsg, commOptions);
+                    console.log(`Posted quiz results to community channel.`);
+                } catch (cErr) {
+                    console.error('Error posting results to community channel:', cErr.message);
+                }
+            }
         }
 
         finalSession.isActive = false;

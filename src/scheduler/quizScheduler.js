@@ -1,10 +1,10 @@
 const cron = require('node-cron');
-const { startQuiz, sendCountdown } = require('../services/quizRunner');
-const { getSetting } = require('../services/settingsService');
 const dotenv = require('dotenv');
+const { startQuiz, sendCountdown } = require('../services/quizRunner');
+const { sendDailyTeaser, sendDidYouKnow, sendWeeklyReports } = require('../services/communityService');
+const { scrapeHpQuestions } = require('../services/questionScraper');
 
 dotenv.config();
-
 
 const initScheduler = async () => {
     // --- 1. Morning Session (08:00 AM) ---
@@ -23,7 +23,19 @@ const initScheduler = async () => {
         });
     }, { timezone: "Asia/Kolkata" });
 
-    // --- 2. Afternoon Session (02:00 PM) ---
+    // --- 2. Daily Teaser to Community Channel (10:00 AM) ---
+    cron.schedule('0 10 * * *', () => {
+        console.log('Triggering Daily Quiz Teaser...');
+        sendDailyTeaser();
+    }, { timezone: "Asia/Kolkata" });
+
+    // --- 3. Did You Know Fact (11:00 AM) ---
+    cron.schedule('0 11 * * *', () => {
+        console.log('Triggering Morning Did You Know Fact...');
+        sendDidYouKnow();
+    }, { timezone: "Asia/Kolkata" });
+
+    // --- 4. Afternoon Session (02:00 PM) ---
     // 5 min warning
     cron.schedule('55 13 * * *', () => sendCountdown('Afternoon HP History & Geography', 5), { timezone: "Asia/Kolkata" });
     // 1 min warning
@@ -39,7 +51,13 @@ const initScheduler = async () => {
         });
     }, { timezone: "Asia/Kolkata" });
 
-    // --- 3. Evening Session (08:00 PM) ---
+    // --- 5. Did You Know Fact (05:00 PM) ---
+    cron.schedule('0 17 * * *', () => {
+        console.log('Triggering Evening Did You Know Fact...');
+        sendDidYouKnow();
+    }, { timezone: "Asia/Kolkata" });
+
+    // --- 6. Evening Session (08:00 PM) ---
     // 5 min warning
     cron.schedule('55 19 * * *', () => sendCountdown('Evening HP GK Mega Mix', 5), { timezone: "Asia/Kolkata" });
     // 1 min warning
@@ -55,16 +73,28 @@ const initScheduler = async () => {
         });
     }, { timezone: "Asia/Kolkata" });
 
-    console.log('✅ Triple Session Scheduler with Countdowns Initialized (08:00, 14:00, 20:00 IST)');
+    // --- 7. Weekly Report Cards (Every Sunday at 09:00 AM) ---
+    cron.schedule('0 9 * * 0', () => {
+        console.log('Triggering Weekly Report Cards...');
+        sendWeeklyReports();
+    }, { timezone: "Asia/Kolkata" });
 
-    // --- 4. Weekly Reset (Every Monday at 00:00 AM) ---
+    // --- 8. Auto Question Scraper (Every Sunday at 03:00 AM) ---
+    cron.schedule('0 3 * * 0', () => {
+        console.log('Triggering Weekly HP Question Scraper...');
+        scrapeHpQuestions();
+    }, { timezone: "Asia/Kolkata" });
+
+    console.log('✅ Full Automation & Engagement Scheduler Initialized (Quizzes, Teasers, Facts, Reports, Scraper)');
+
+    // --- 9. Weekly Reset (Every Monday at 00:00 AM) ---
     cron.schedule('0 0 * * 1', async () => {
         console.log('Reseting Weekly Scores...');
         const User = require('../models/User');
         await User.updateMany({}, { weeklyScore: 0 });
     }, { timezone: "Asia/Kolkata" });
 
-    // --- 5. Monthly Winner Ceremony & Reset (1st of every month at 00:01 AM) ---
+    // --- 10. Monthly Winner Ceremony & Reset (1st of every month at 00:01 AM) ---
     cron.schedule('1 0 1 * *', async () => {
         console.log('Monthly Ceremony Starting...');
         const User = require('../models/User');
