@@ -220,7 +220,12 @@ bot.onText(/\/random(@\w+)?/, async (msg) => {
             try {
                 await bot.sendMessage(chatId, answerReveal, { parse_mode: 'Markdown' });
             } catch (err) {
-                console.error('Error sending answer reveal:', err.message);
+                // Fallback to plain text if markdown formatting encounters special characters
+                const plainReveal = `✅ Answer & Explanation\n\n` +
+                    `Q: ${q.question}\n\n` +
+                    `✅ Correct Answer: ${q.options[q.correctIndex]}\n` +
+                    `ℹ️ Explanation: ${q.explanation}`;
+                await bot.sendMessage(chatId, plainReveal).catch(e => console.error('Error sending plain reveal:', e.message));
             }
         }, (openPeriod + 1) * 1000);
 
