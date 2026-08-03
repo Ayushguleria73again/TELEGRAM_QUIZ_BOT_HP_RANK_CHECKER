@@ -50,12 +50,7 @@ const startQuiz = async (options = {}) => {
         // Define query for category filtering
         const query = {};
         if (selectedCategories && selectedCategories.length > 0 && !selectedCategories.includes('All')) {
-            if (selectedCategories.includes('GK')) {
-                // 'GK' means anything EXCEPT 'Current Affairs'
-                query.category = { $ne: 'Current Affairs' };
-            } else {
-                query.category = { $in: selectedCategories };
-            }
+            query.category = { $in: selectedCategories };
         }
 
         // 1. Fetch a larger pool of potential questions (e.g., 3x the count)

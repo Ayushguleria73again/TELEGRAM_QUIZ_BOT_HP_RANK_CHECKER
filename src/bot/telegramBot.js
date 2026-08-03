@@ -94,18 +94,18 @@ bot.onText(/\/leaderboard/, async (msg) => {
 // Info command
 bot.onText(/\/info/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
-    const infoText = `📅 *Daily Quiz Schedule (IST)*\n\n` +
+    const infoText = `📅 *Daily Himachal Pradesh GK Schedule (IST)*\n\n` +
         `🌅 *Morning Session (08:00 AM)*\n` +
-        `• Focus: General Knowledge (GK)\n` +
-        `• Count: 60 Questions\n` +
-        `• Timer: 15 Seconds\n\n` +
-        `☀️ *Afternoon Session (02:00 PM)*\n` +
-        `• Focus: Current Affairs Only\n` +
+        `• Focus: Himachal GK Special\n` +
         `• Count: 30 Questions\n` +
         `• Timer: 15 Seconds\n\n` +
+        `☀️ *Afternoon Session (02:00 PM)*\n` +
+        `• Focus: HP History & Geography\n` +
+        `• Count: 20 Questions\n` +
+        `• Timer: 15 Seconds\n\n` +
         `🌙 *Evening Session (08:00 PM)*\n` +
-        `• Focus: GK + Current Affairs Mix\n` +
-        `• Count: 40 Questions\n` +
+        `• Focus: HP GK Mega Mix\n` +
+        `• Count: 30 Questions\n` +
         `• Timer: 15 Seconds\n\n` +
         `🏁 *Results & Leaderboards* are posted immediately after every quiz!`;
 

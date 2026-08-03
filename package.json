@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "diagnose": "node diagnose_bot.js",
     "seed": "node seedQuestions.js",
+    "seed:hp": "node seed_hp_gk.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
