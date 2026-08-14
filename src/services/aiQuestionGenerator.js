@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Question = require('../models/Question');
-const { checkIsDuplicate } = require('./questionScraper');
+const { checkIsDuplicate, buildBloomFilter, normalizeText } = require('./questionScraper');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -94,8 +94,9 @@ JSON format:
         const generatedQuestions = JSON.parse(jsonMatch[0]);
         console.log(`🤖 AI generated ${generatedQuestions.length} raw questions.`);
 
-        // Fetch existing DB questions for deduplication
+        // Fetch existing DB questions for deduplication and build Bloom Filter
         const allDbQuestions = await Question.find({}, 'question options');
+        const bloomFilter = buildBloomFilter(allDbQuestions);
         let addedCount = 0;
         let skippedCount = 0;
         const newValidQuestions = [];
@@ -107,10 +108,11 @@ JSON format:
 
             qObj.category = 'Himachal GK';
 
-            const isDup = checkIsDuplicate(qObj, allDbQuestions);
+            const isDup = checkIsDuplicate(qObj, allDbQuestions, bloomFilter);
             if (!isDup) {
                 await Question.create(qObj);
                 allDbQuestions.push(qObj);
+                bloomFilter.add(normalizeText(qObj.question));
                 newValidQuestions.push(qObj);
                 addedCount++;
             } else {

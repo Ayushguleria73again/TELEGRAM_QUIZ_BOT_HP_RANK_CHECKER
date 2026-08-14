@@ -33,23 +33,43 @@ const getWordSimilarity = (str1, str2) => {
     return intersectionCount / unionCount;
 };
 
+const QuestionBloomFilter = require('../utils/bloomFilter');
+
 /**
- * Checks if a candidate question is a duplicate of any question in the DB.
+ * Builds a QuestionBloomFilter populated with normalized questions from DB.
  */
-const checkIsDuplicate = (candidateQ, existingDbQuestions) => {
+const buildBloomFilter = (existingDbQuestions) => {
+    const bf = new QuestionBloomFilter(Math.max(existingDbQuestions.length * 2, 10000));
+    for (const q of existingDbQuestions) {
+        const norm = normalizeText(q.question);
+        bf.add(norm);
+    }
+    return bf;
+};
+
+/**
+ * Checks if a candidate question is a duplicate using Bloom Filter O(1) + Fuzzy verification fallback.
+ */
+const checkIsDuplicate = (candidateQ, existingDbQuestions, bloomFilter = null) => {
     const normCandidate = normalizeText(candidateQ.question);
 
+    // 1. Bloom Filter O(1) Check: If Bloom Filter returns false, item is 100% GUARANTEED NEW!
+    if (bloomFilter && !bloomFilter.contains(normCandidate)) {
+        return false; // ⚡ Instant O(1) return! Eliminates unnecessary string comparisons.
+    }
+
+    // 2. If Bloom Filter returns true (MAYBE DUPLICATE), run full verification loop
     for (const dbQ of existingDbQuestions) {
         const normDbQ = normalizeText(dbQ.question);
 
-        // 1. Exact normalized match (ignores casing, punctuation, prefix numbers, HP vs Himachal Pradesh)
+        // Exact normalized match (ignores casing, punctuation, prefix numbers, HP vs Himachal Pradesh)
         if (normCandidate === normDbQ) return true;
 
-        // 2. High fuzzy word similarity (>= 75% word overlap)
+        // High fuzzy word similarity (>= 75% word overlap)
         const similarity = getWordSimilarity(normCandidate, normDbQ);
         if (similarity >= 0.75) return true;
 
-        // 3. Moderate word similarity (>= 35%) + at least 2 matching options (e.g. "Reo Purgyil", "Hanuman Tibba")
+        // Moderate word similarity (>= 35%) + at least 2 matching options
         if (similarity >= 0.35 && candidateQ.options && dbQ.options) {
             const candOptionsNorm = candidateQ.options.map(o => normalizeText(o));
             const dbOptionsNorm = dbQ.options.map(o => normalizeText(o));
@@ -125,15 +145,17 @@ const scrapeHpQuestions = async () => {
 
         console.log(`Extracted ${parsedQuestions.length} candidate questions from web page.`);
 
-        // Fetch all existing questions from DB once for fast comparison
+        // Fetch all existing questions from DB once and build Bloom Filter
         const allDbQuestions = await Question.find({}, 'question options');
+        const bloomFilter = buildBloomFilter(allDbQuestions);
 
         // Insert new unique questions into DB
         for (const qObj of parsedQuestions) {
-            const isDup = checkIsDuplicate(qObj, allDbQuestions);
+            const isDup = checkIsDuplicate(qObj, allDbQuestions, bloomFilter);
             if (!isDup) {
                 await Question.create(qObj);
-                allDbQuestions.push(qObj); // Add to local cache to prevent duplicate inserts within same run
+                allDbQuestions.push(qObj);
+                bloomFilter.add(normalizeText(qObj.question));
                 addedCount++;
             } else {
                 skippedCount++;
@@ -148,4 +170,4 @@ const scrapeHpQuestions = async () => {
     return { addedCount, skippedCount };
 };
 
-module.exports = { scrapeHpQuestions, checkIsDuplicate, normalizeText };
+module.exports = { scrapeHpQuestions, checkIsDuplicate, normalizeText, buildBloomFilter };
