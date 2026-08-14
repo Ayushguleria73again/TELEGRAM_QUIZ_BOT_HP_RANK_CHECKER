@@ -67,21 +67,21 @@ JSON format:
 ]`;
 
     try {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-        const response = await axios.post(apiUrl, {
-            contents: [{
-                parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-                temperature: 0.7,
-                topP: 0.95,
-                maxOutputTokens: 4096
-            }
-        }, {
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 30000
-        });
+        let response;
+        try {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            response = await axios.post(apiUrl, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
+            }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
+        } catch (primaryErr) {
+            console.warn('gemini-flash-latest primary endpoint failed, trying gemini-3.6-flash fallback...');
+            const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+            response = await axios.post(fallbackUrl, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
+            }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
+        }
 
         const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         

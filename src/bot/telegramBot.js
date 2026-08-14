@@ -305,7 +305,7 @@ bot.onText(/\/generate(@\w+)?(?:\s+(\d+))?/, async (msg, match) => {
     const count = parseInt(match[2] || '10', 10);
     const { generateAiQuestions } = require('../services/aiQuestionGenerator');
 
-    await bot.sendMessage(chatId, `🤖 *AI Question Generator Started*\n\nGenerating ${count} fresh HP GK questions using Gemini AI... Please wait!`, { parse_mode: 'Markdown' });
+    const statusMsg = await bot.sendMessage(chatId, `🤖 *AI Question Generator Started*\n\nGenerating ${count} fresh HP GK questions using Gemini AI... Please wait!`, { parse_mode: 'Markdown' });
 
     try {
         const result = await generateAiQuestions(count);
@@ -314,9 +314,14 @@ bot.onText(/\/generate(@\w+)?(?:\s+(\d+))?/, async (msg, match) => {
             `⏭️ *Skipped:* ${result.skippedCount} duplicate questions\n` +
             `📦 *Total Bank Size:* ${result.totalQuestions} questions in DB! 🚀`;
 
-        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        bot.editMessageText(report, { chatId, message_id: statusMsg.message_id, parse_mode: 'Markdown' }).catch(() => {
+            bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+        });
     } catch (err) {
-        bot.sendMessage(chatId, `❌ AI Generation Failed: ${err.message}\n\nMake sure GEMINI_API_KEY is set in .env!`);
+        const errMsg = `❌ *AI Generation Failed:* ${err.message}\n\nMake sure GEMINI_API_KEY is set in .env!`;
+        bot.editMessageText(errMsg, { chatId, message_id: statusMsg.message_id, parse_mode: 'Markdown' }).catch(() => {
+            bot.sendMessage(chatId, errMsg, { parse_mode: 'Markdown' });
+        });
     }
 });
 
