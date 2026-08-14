@@ -3,6 +3,7 @@ const { startQuiz } = require('../services/quizRunner');
 const { getSetting, setSetting } = require('../services/settingsService');
 const { initScheduler } = require('../scheduler/quizScheduler');
 const Question = require('../models/Question');
+const { shuffleQuestionOptions } = require('../utils/shuffleOptions');
 
 // Rate Limiting Logic
 const lastCommandTime = new Map();
@@ -193,7 +194,8 @@ bot.onText(/\/random(@\w+)?/, async (msg) => {
             return bot.sendMessage(chatId, "⚠️ No HP GK questions available right now.");
         }
 
-        const q = pool[Math.floor(Math.random() * pool.length)];
+        const rawQ = pool[Math.floor(Math.random() * pool.length)];
+        const q = shuffleQuestionOptions(rawQ);
         await Question.updateOne({ _id: q._id }, { lastUsed: new Date() });
         let qText = `🎲 *Instant HP GK Challenge!*\n\n${q.question}`;
         if (qText.length > 300) qText = qText.substring(0, 297) + '...';

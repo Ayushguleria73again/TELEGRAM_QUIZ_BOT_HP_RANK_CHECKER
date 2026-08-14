@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const Question = require('../models/Question');
 const { checkIsDuplicate, buildBloomFilter, normalizeText } = require('./questionScraper');
+const { shuffleQuestionOptions } = require('../utils/shuffleOptions');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -110,10 +111,11 @@ JSON format:
 
             const isDup = checkIsDuplicate(qObj, allDbQuestions, bloomFilter);
             if (!isDup) {
-                await Question.create(qObj);
-                allDbQuestions.push(qObj);
-                bloomFilter.add(normalizeText(qObj.question));
-                newValidQuestions.push(qObj);
+                const finalQ = shuffleQuestionOptions(qObj);
+                await Question.create(finalQ);
+                allDbQuestions.push(finalQ);
+                bloomFilter.add(normalizeText(finalQ.question));
+                newValidQuestions.push(finalQ);
                 addedCount++;
             } else {
                 skippedCount++;

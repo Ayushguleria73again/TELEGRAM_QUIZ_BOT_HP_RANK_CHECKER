@@ -3,6 +3,7 @@ const Question = require('../models/Question');
 const User = require('../models/User');
 const { getRankDetails } = require('../utils/rankUtils');
 const { getBadgeEmojis } = require('../utils/badgeUtils');
+const { shuffleQuestionOptions } = require('../utils/shuffleOptions');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
@@ -26,7 +27,8 @@ const sendDailyTeaser = async () => {
             return;
         }
 
-        const q = pool[Math.floor(Math.random() * pool.length)];
+        let rawQ = pool[Math.floor(Math.random() * pool.length)];
+        const q = shuffleQuestionOptions(rawQ);
         await Question.updateOne({ _id: q._id }, { lastUsed: new Date() });
 
         let questionText = `🎯 *Daily HP GK Quiz of the Day!*\n\n${q.question}`;

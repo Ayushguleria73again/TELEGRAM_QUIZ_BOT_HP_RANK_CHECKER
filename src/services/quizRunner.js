@@ -2,6 +2,7 @@ const Question = require('../models/Question');
 const QuizSession = require('../models/QuizSession');
 const bot = require('../bot/botInstance');
 const { getSetting } = require('./settingsService');
+const { shuffleQuestionOptions } = require('../utils/shuffleOptions');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -98,7 +99,9 @@ const startQuiz = async (options = {}) => {
         // 3. Loop through questions
         for (let i = 0; i < selectedQuestions.length; i++) {
             try {
-                const q = selectedQuestions[i];
+                // Dynamically shuffle and rotate options across A, B, C, D
+                const q = shuffleQuestionOptions(selectedQuestions[i]);
+                selectedQuestions[i] = q;
 
                 let questionText = `${i + 1}. ${q.question}`;
                 if (questionText.length > 300) {
