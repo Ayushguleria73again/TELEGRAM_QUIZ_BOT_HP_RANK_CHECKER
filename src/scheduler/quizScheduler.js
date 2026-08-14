@@ -85,7 +85,18 @@ const initScheduler = async () => {
         scrapeHpQuestions();
     }, { timezone: "Asia/Kolkata" });
 
-    console.log('✅ Full Automation & Engagement Scheduler Initialized (Quizzes, Teasers, Facts, Reports, Scraper)');
+    // --- 9. Weekly AI Question Generator (Every Wednesday at 04:00 AM) ---
+    cron.schedule('0 4 * * 3', async () => {
+        console.log('Triggering Weekly AI Question Generator...');
+        try {
+            const { generateAiQuestions } = require('./aiQuestionGenerator');
+            await generateAiQuestions(15);
+        } catch (err) {
+            console.error('Error running automated AI question generation:', err.message);
+        }
+    }, { timezone: "Asia/Kolkata" });
+
+    console.log('✅ Full Automation & Engagement Scheduler Initialized (Quizzes, Teasers, Facts, Reports, Scraper, AI Generator)');
 
     // --- 9. Weekly Reset (Every Monday at 00:00 AM) ---
     cron.schedule('0 0 * * 1', async () => {

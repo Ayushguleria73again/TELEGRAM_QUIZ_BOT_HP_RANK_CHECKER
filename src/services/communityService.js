@@ -20,13 +20,14 @@ const sendDailyTeaser = async () => {
     }
 
     try {
-        const questions = await Question.aggregate([{ $sample: { size: 1 } }]);
-        if (questions.length === 0) {
+        const pool = await Question.find({}).sort({ lastUsed: 1 }).limit(10);
+        if (!pool || pool.length === 0) {
             console.log('No questions in DB for daily teaser.');
             return;
         }
 
-        const q = questions[0];
+        const q = pool[Math.floor(Math.random() * pool.length)];
+        await Question.updateOne({ _id: q._id }, { lastUsed: new Date() });
 
         let questionText = `🎯 *Daily HP GK Quiz of the Day!*\n\n${q.question}`;
         if (questionText.length > 300) {

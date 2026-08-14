@@ -29,6 +29,7 @@ bot.setMyCommands([
     { command: 'leaderboard', description: '🏆 View global rankings' },
     { command: 'random', description: '🎲 Get a random HP GK question instantly' },
     { command: 'challenge', description: '⚔️ Challenge someone to a 1v1 duel' },
+    { command: 'generate', description: '🤖 (Admin) Generate new HP GK questions via AI' },
     { command: 'info', description: '📅 View daily quiz schedule' },
     { command: 'id', description: '🆔 Get your Telegram ID' }
 ]).catch(err => console.error('Error setting commands:', err));
@@ -187,12 +188,13 @@ bot.onText(/\/random(@\w+)?/, async (msg) => {
     const chatId = msg.chat.id;
 
     try {
-        const questions = await Question.aggregate([{ $sample: { size: 1 } }]);
-        if (questions.length === 0) {
+        const pool = await Question.find({}).sort({ lastUsed: 1 }).limit(15);
+        if (!pool || pool.length === 0) {
             return bot.sendMessage(chatId, "⚠️ No HP GK questions available right now.");
         }
 
-        const q = questions[0];
+        const q = pool[Math.floor(Math.random() * pool.length)];
+        await Question.updateOne({ _id: q._id }, { lastUsed: new Date() });
         let qText = `🎲 *Instant HP GK Challenge!*\n\n${q.question}`;
         if (qText.length > 300) qText = qText.substring(0, 297) + '...';
 
@@ -290,6 +292,31 @@ bot.onText(/\/challenge(@\w+)?\s+(.+)/, async (msg, match) => {
         bot.sendMessage(chatId, inviteMsg, options);
     } catch (err) {
         console.error('Error initiating challenge:', err);
+    }
+});
+
+// AI Question Generator Command (Admin Only)
+bot.onText(/\/generate(@\w+)?(?:\s+(\d+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (ADMIN_ID && chatId.toString() !== ADMIN_ID.toString()) {
+        return bot.sendMessage(chatId, "⚠️ Unauthorised.");
+    }
+
+    const count = parseInt(match[2] || '10', 10);
+    const { generateAiQuestions } = require('../services/aiQuestionGenerator');
+
+    await bot.sendMessage(chatId, `🤖 *AI Question Generator Started*\n\nGenerating ${count} fresh HP GK questions using Gemini AI... Please wait!`, { parse_mode: 'Markdown' });
+
+    try {
+        const result = await generateAiQuestions(count);
+        const report = `🎉 *AI Question Generation Complete!*\n\n` +
+            `✅ *Added:* ${result.addedCount} new unique questions\n` +
+            `⏭️ *Skipped:* ${result.skippedCount} duplicate questions\n` +
+            `📦 *Total Bank Size:* ${result.totalQuestions} questions in DB! 🚀`;
+
+        bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+    } catch (err) {
+        bot.sendMessage(chatId, `❌ AI Generation Failed: ${err.message}\n\nMake sure GEMINI_API_KEY is set in .env!`);
     }
 });
 

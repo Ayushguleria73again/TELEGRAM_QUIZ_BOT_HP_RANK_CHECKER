@@ -55,19 +55,15 @@ const startQuiz = async (options = {}) => {
             query.category = { $in: selectedCategories };
         }
 
-        // 1. Fetch a larger pool of potential questions (e.g., 3x the count)
-        // We still prefer those least recently used
-        const limit = count * 3;
-        const questionsPool = await Question.find(query)
-            .sort({ lastUsed: 1 })
-            .limit(limit);
+        // 1. Strict Rotation: Fetch questions sorted by lastUsed (nulls first, then oldest)
+        const allQuestions = await Question.find(query).sort({ lastUsed: 1 });
 
-        if (questionsPool.length < 1) {
+        if (!allQuestions || allQuestions.length < 1) {
             console.log('No questions found in database.');
             return;
         }
 
-        // Fisher-Yates Shuffle for truly random selection from the pool
+        // Shuffle utility
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -76,13 +72,16 @@ const startQuiz = async (options = {}) => {
             return array;
         };
 
-        const shuffledPool = shuffle([...questionsPool]);
+        // Pick from the top candidate pool (oldest/never used questions)
+        const poolSize = Math.min(allQuestions.length, Math.max(count * 2, 50));
+        const candidatePool = allQuestions.slice(0, poolSize);
+        const shuffledPool = shuffle([...candidatePool]);
         const selectedQuestions = shuffledPool.slice(0, Math.min(count, shuffledPool.length));
 
-        if (selectedQuestions.length < 1) {
-            console.log('No questions found in database.');
-            return;
-        }
+        // Immediately update lastUsed timestamps so concurrent/next sessions won't pick them
+        const now = new Date();
+        const selectedIds = selectedQuestions.map(q => q._id);
+        await Question.updateMany({ _id: { $in: selectedIds } }, { lastUsed: now });
 
         // 2. Send Rules Message
         const categoriesDisplay = (selectedCategories && selectedCategories.length > 0) ? selectedCategories.join(', ') : 'All';
