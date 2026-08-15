@@ -70,14 +70,14 @@ JSON format:
     try {
         let response;
         try {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
             response = await axios.post(apiUrl, {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
             }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
         } catch (primaryErr) {
-            console.warn('gemini-flash-latest primary endpoint failed, trying gemini-3.6-flash fallback...');
-            const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+            console.warn('gemini-3.6-flash primary endpoint failed, trying gemini-flash-latest fallback...');
+            const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
             response = await axios.post(fallbackUrl, {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
@@ -123,11 +123,20 @@ Return ONLY a valid JSON array of objects in this exact format:
   }
 ]`;
 
-            const revApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-            const revResponse = await axios.post(revApiUrl, {
-                contents: [{ parts: [{ text: reviewerPrompt }] }],
-                generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 } // Low temperature for high factual accuracy
-            }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
+            let revResponse;
+            try {
+                const revApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+                revResponse = await axios.post(revApiUrl, {
+                    contents: [{ parts: [{ text: reviewerPrompt }] }],
+                    generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 }
+                }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
+            } catch (revPrimaryErr) {
+                const revFallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+                revResponse = await axios.post(revFallbackUrl, {
+                    contents: [{ parts: [{ text: reviewerPrompt }] }],
+                    generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 }
+                }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
+            }
 
             const revRawText = revResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
             const revJsonMatch = revRawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
