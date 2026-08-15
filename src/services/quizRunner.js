@@ -132,8 +132,7 @@ const startQuiz = async (options = {}) => {
 
                 // Update lastUsed date (gracefully)
                 try {
-                    q.lastUsed = new Date();
-                    await q.save();
+                    await Question.updateOne({ _id: q._id }, { lastUsed: new Date() });
                 } catch (saveErr) {
                     console.error(`Could not update lastUsed for question ${q._id}:`, saveErr.message);
                 }
@@ -169,14 +168,31 @@ const startQuiz = async (options = {}) => {
         }
         messages.push(explanationsText);
 
-        for (const msg of messages) {
-            const sentMsg = await bot.sendMessage(CHANNEL_ID, msg);
-            // Optional: Pin the last message
-            if (messages.indexOf(msg) === messages.length - 1) {
+        for (let idx = 0; idx < messages.length; idx++) {
+            const msg = messages[idx];
+            // Create inline report buttons for questions in this session
+            const inlineButtons = [];
+            const startQ = idx * 5;
+            const endQ = Math.min(selectedQuestions.length, (idx + 1) * 5);
+            const row = [];
+            for (let qIdx = startQ; qIdx < endQ; qIdx++) {
+                row.push({ text: `🚩 Report Q${qIdx + 1}`, callback_data: `flag_q_${selectedQuestions[qIdx]._id}` });
+                if (row.length === 2) {
+                    inlineButtons.push([...row]);
+                    row.length = 0;
+                }
+            }
+            if (row.length > 0) inlineButtons.push(row);
+
+            const sentMsg = await bot.sendMessage(CHANNEL_ID, msg, {
+                reply_markup: { inline_keyboard: inlineButtons }
+            });
+
+            if (idx === messages.length - 1) {
                 try {
                     await bot.pinChatMessage(CHANNEL_ID, sentMsg.message_id);
                 } catch (e) {
-                    console.log('Could not pin message (bot might not be admin with pin permission)');
+                    console.log('Could not pin message');
                 }
             }
             await delay(1000);

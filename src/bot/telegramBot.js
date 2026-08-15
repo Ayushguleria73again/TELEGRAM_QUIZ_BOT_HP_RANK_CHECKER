@@ -261,6 +261,33 @@ bot.onText(/\/startquiz(@\w+)?/, async (msg) => {
     }
 });
 
+// User Reporting / Flag Command
+bot.onText(/\/flag(@\w+)?(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const queryStr = match[2] ? match[2].trim() : '';
+
+    if (!queryStr) {
+        return bot.sendMessage(chatId, "🚩 *Report a Question Issue*\n\nTo report a question, tap the *'🚩 Report Q'* button under the quiz answer summary message, or type:\n`/flag [question text]`", { parse_mode: 'Markdown' });
+    }
+
+    try {
+        const matchingQ = await Question.findOne({ question: new RegExp(queryStr, 'i') });
+        if (!matchingQ) {
+            return bot.sendMessage(chatId, `⚠️ Could not find a question matching "${queryStr}". Make sure to copy the question text!`);
+        }
+
+        matchingQ.flagCount = (matchingQ.flagCount || 0) + 1;
+        if (matchingQ.flagCount >= 2) {
+            matchingQ.isFlagged = true;
+        }
+        await matchingQ.save();
+
+        bot.sendMessage(chatId, `🚩 *Thank you!* The question has been reported to Admin for review.`, { parse_mode: 'Markdown' });
+    } catch (err) {
+        bot.sendMessage(chatId, `Error reporting question: ${err.message}`);
+    }
+});
+
 // Battle Mode: Challenge Command
 bot.onText(/\/challenge(@\w+)?\s+(.+)/, async (msg, match) => {
     if (checkRateLimit(msg.from.id)) return;
