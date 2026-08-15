@@ -378,11 +378,12 @@ bot.onText(/\/(flagged|flaged)(@\w+)?/i, async (msg) => {
 
         for (let i = 0; i < Math.min(flaggedQs.length, 5); i++) {
             const q = flaggedQs[i];
-            const text = `*Q${i + 1}:* ${q.question}\n✅ *Ans:* ${q.options[q.correctIndex]}\n🚩 *Total Flags:* ${q.flagCount}`;
+            const text = `*Q${i + 1}:* ${q.question}\n✅ *Current Marked Ans:* ${q.options[q.correctIndex]}\n🚩 *Total Flags:* ${q.flagCount}`;
             const opts = {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
+                        [{ text: "🤖 AI Auto-Fix & Audit", callback_data: `aiaudit_q_${q._id}` }],
                         [
                             { text: "✅ Approve & Restore", callback_data: `unflag_${q._id}` },
                             { text: "🗑️ Delete Question", callback_data: `delete_q_${q._id}` }
@@ -912,6 +913,49 @@ bot.on('callback_query', async (query) => {
             }
         } catch (err) {
             console.error('Error handling flag_q:', err.message);
+        }
+    } else if (data.startsWith('aiaudit_q_')) {
+        const qId = data.replace('aiaudit_q_', '');
+        const messageId = query.message.message_id;
+        bot.answerCallbackQuery(query.id, { text: "🤖 AI Reviewer Agent auditing question..." });
+        bot.editMessageText(`🤖 *AI Reviewer Agent auditing question... Please wait!*`, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {});
+
+        try {
+            const { auditSingleQuestionWithAi } = require('../services/aiQuestionGenerator');
+            const res = await auditSingleQuestionWithAi(qId);
+
+            if (res.status === 'FIXED') {
+                const report = `🤖 *AI Auto-Corrected & Restored!*\n\n` +
+                    `*Q:* ${res.question.question}\n` +
+                    `✅ *Correct Answer:* ${res.question.options[res.question.correctIndex]}\n` +
+                    `ℹ️ *Explanation:* ${res.question.explanation}\n\n` +
+                    `🛠️ *Audit Notes:* ${res.changesMade}\n\n` +
+                    `✅ *Status:* Factually verified & restored to active quiz pool! 🚀`;
+
+                bot.editMessageText(report, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {
+                    bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+                });
+            } else {
+                const report = `⚠️ *AI Recommendation: DELETE QUESTION!*\n\n` +
+                    `*Q:* ${res.question.question}\n` +
+                    `❌ *Reason:* ${res.reason}\n\n` +
+                    `Tap below to delete this question:`;
+
+                const opts = {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "🗑️ Confirm Delete Question", callback_data: `delete_q_${res.question._id}` }]
+                        ]
+                    }
+                };
+
+                bot.editMessageText(report, { chatId, message_id: messageId, ...opts }).catch(() => {
+                    bot.sendMessage(chatId, report, opts);
+                });
+            }
+        } catch (err) {
+            bot.sendMessage(chatId, `❌ AI Audit Error: ${err.message}`);
         }
     } else if (data.startsWith('unflag_')) {
         const qId = data.replace('unflag_', '');

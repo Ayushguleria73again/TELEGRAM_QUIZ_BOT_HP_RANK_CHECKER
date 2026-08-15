@@ -221,4 +221,81 @@ Return JSON format:
     }
 };
 
-module.exports = { generateAiQuestions };
+/**
+ * Uses AI Reviewer Agent to audit, fact-check, and auto-correct or recommend deletion for a single reported question.
+ * @param {string} questionId MongoDB Question _id
+ */
+const auditSingleQuestionWithAi = async (questionId) => {
+    const q = await Question.findById(questionId);
+    if (!q) throw new Error('Question not found in database.');
+
+    const prompt = `You are a Senior Chief Examiner & Auditor for Himachal Pradesh Public Service Commission (HPPSC / HAS exams).
+Audit this reported HP GK question for 100% factual accuracy:
+
+Question: "${q.question}"
+Options: ${JSON.stringify(q.options)}
+Marked Correct Option: "${q.options[q.correctIndex]}" (Index: ${q.correctIndex})
+Explanation: "${q.explanation}"
+
+Instructions:
+1. Verify if the question statement is factually valid regarding Himachal Pradesh.
+2. If the question is INVALID, nonsense, factually broken beyond repair, or ambiguous, return JSON:
+   {"isValid": false, "reason": "Clear explanation of why this question is invalid and should be deleted."}
+3. If the question IS VALID:
+   - Identify the 100% true correct option.
+   - If marked correctIndex was wrong, fix correctIndex (0-3).
+   - Ensure explanation is factually accurate.
+   - Return JSON:
+   {
+     "isValid": true,
+     "question": "Verified/cleaned question text",
+     "options": ["Opt A", "Opt B", "Opt C", "Opt D"],
+     "correctIndex": 0,
+     "explanation": "Factually verified 1-2 sentence explanation.",
+     "changesMade": "Summary of what was corrected or confirmed."
+   }`;
+
+    const genConfig = { temperature: 0.2, topP: 0.8, maxOutputTokens: 2048, responseMimeType: "application/json" };
+    let response;
+    try {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+        response = await axios.post(apiUrl, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: genConfig
+        }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
+    } catch (err) {
+        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+        response = await axios.post(fallbackUrl, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: genConfig
+        }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
+    }
+
+    const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const auditResult = JSON.parse(rawText);
+
+    if (auditResult.isValid) {
+        // Auto-correct question in MongoDB & clear flags
+        q.question = auditResult.question || q.question;
+        q.options = auditResult.options || q.options;
+        q.correctIndex = auditResult.correctIndex !== undefined ? auditResult.correctIndex : q.correctIndex;
+        q.explanation = auditResult.explanation || q.explanation;
+        q.isFlagged = false;
+        q.flagCount = 0;
+        await q.save();
+
+        return {
+            status: 'FIXED',
+            changesMade: auditResult.changesMade || 'Factual accuracy verified and updated.',
+            question: q
+        };
+    } else {
+        return {
+            status: 'REJECTED',
+            reason: auditResult.reason || 'Question determined to be factually invalid or ambiguous.',
+            question: q
+        };
+    }
+};
+
+module.exports = { generateAiQuestions, auditSingleQuestionWithAi };
