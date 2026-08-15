@@ -93,7 +93,55 @@ JSON format:
         }
 
         const generatedQuestions = JSON.parse(jsonMatch[0]);
-        console.log(`🤖 AI generated ${generatedQuestions.length} raw questions.`);
+        console.log(`🤖 AI Generator Agent created ${generatedQuestions.length} candidate questions.`);
+
+        // --- Dual-AI Pipeline Step 2: AI Reviewer & Fact-Checker Agent ---
+        let verifiedQuestions = [];
+        try {
+            console.log(`🕵️ Passing ${generatedQuestions.length} candidates to AI Reviewer & Fact-Checker Agent...`);
+            const reviewerPrompt = `You are a Senior Chief Examiner & Fact-Checker for Himachal Pradesh Public Service Commission (HPPSC / HAS exams).
+Your job is to audit and fact-check candidate Multiple Choice Questions (MCQs) for 100% factual accuracy, correct option indices, and clear explanations.
+
+Candidate questions to review:
+${JSON.stringify(generatedQuestions, null, 2)}
+
+Instructions:
+1. Verify each question against real Himachal Pradesh General Knowledge facts.
+2. Verify if options are accurate and marked correctIndex points to the true correct answer.
+3. If any factual error or bad option is found, fix it in the returned object.
+4. If a question is factually broken or ambiguous, set "approved": false.
+
+Return ONLY a valid JSON array of objects in this exact format:
+[
+  {
+    "approved": true,
+    "question": "Verified question text",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "explanation": "Factually verified 1-2 sentence explanation.",
+    "category": "Himachal GK"
+  }
+]`;
+
+            const revApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            const revResponse = await axios.post(revApiUrl, {
+                contents: [{ parts: [{ text: reviewerPrompt }] }],
+                generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 } // Low temperature for high factual accuracy
+            }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
+
+            const revRawText = revResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const revJsonMatch = revRawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (revJsonMatch) {
+                const audited = JSON.parse(revJsonMatch[0]);
+                verifiedQuestions = audited.filter(q => q.approved !== false);
+                console.log(`✅ AI Reviewer Agent approved ${verifiedQuestions.length}/${generatedQuestions.length} factually verified questions.`);
+            } else {
+                verifiedQuestions = generatedQuestions;
+            }
+        } catch (revErr) {
+            console.warn('⚠️ AI Reviewer Agent step encountered an error, falling back to primary generator:', revErr.message);
+            verifiedQuestions = generatedQuestions;
+        }
 
         // Fetch existing DB questions for deduplication and build Bloom Filter
         const allDbQuestions = await Question.find({}, 'question options');
@@ -102,7 +150,7 @@ JSON format:
         let skippedCount = 0;
         const newValidQuestions = [];
 
-        for (const qObj of generatedQuestions) {
+        for (const qObj of verifiedQuestions) {
             if (!qObj.question || !Array.isArray(qObj.options) || qObj.options.length !== 4 || qObj.correctIndex === undefined) {
                 continue;
             }
