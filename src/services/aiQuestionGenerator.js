@@ -24,6 +24,34 @@ const HP_GK_TOPICS = [
 ];
 
 /**
+ * Safely parses JSON arrays from AI responses, handling raw JSON, markdown code fences, or wrapped JSON objects.
+ */
+const safeParseJsonArray = (text) => {
+    if (!text) throw new Error('AI response body was empty.');
+
+    try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) return parsed;
+        if (typeof parsed === 'object' && parsed !== null) {
+            const arr = parsed.questions || parsed.data || parsed.items || Object.values(parsed).find(Array.isArray);
+            if (arr) return arr;
+        }
+    } catch (e) {
+        const arrayMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+            return JSON.parse(arrayMatch[0]);
+        }
+        const objMatch = text.match(/\{[\s\S]*\}/);
+        if (objMatch) {
+            const parsedObj = JSON.parse(objMatch[0]);
+            const arr = parsedObj.questions || parsedObj.data || parsedObj.items || Object.values(parsedObj).find(Array.isArray);
+            if (arr) return arr;
+        }
+    }
+    throw new Error('AI response did not contain a valid JSON array');
+};
+
+/**
  * Uses Gemini AI to generate fresh Himachal Pradesh GK MCQs and seed unique questions into MongoDB.
  * @param {number} count Number of questions to generate (default: 10)
  * @returns {Promise<{addedCount: number, skippedCount: number, totalQuestions: number}>}
@@ -54,9 +82,8 @@ Rules:
 1. Each question MUST have exactly 4 options.
 2. Only 1 option must be correct.
 3. Provide a clear, educational 1-2 sentence explanation.
-4. Output MUST be ONLY a valid JSON array of objects. Do not include markdown code blocks or trailing text outside JSON.
 
-JSON format:
+Output JSON format:
 [
   {
     "question": "Which river enters Himachal Pradesh at Shipki Pass in Kinnaur?",
@@ -69,30 +96,24 @@ JSON format:
 
     try {
         let response;
+        const genConfig = { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096, responseMimeType: "application/json" };
         try {
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
             response = await axios.post(apiUrl, {
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
+                generationConfig: genConfig
             }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
         } catch (primaryErr) {
             console.warn('gemini-3.6-flash primary endpoint failed, trying gemini-flash-latest fallback...');
             const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
             response = await axios.post(fallbackUrl, {
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096 }
+                generationConfig: genConfig
             }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
         }
 
         const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        
-        // Clean markdown code fence if present
-        const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (!jsonMatch) {
-            throw new Error('AI response did not contain a valid JSON array');
-        }
-
-        const generatedQuestions = JSON.parse(jsonMatch[0]);
+        const generatedQuestions = safeParseJsonArray(rawText);
         console.log(`🤖 AI Generator Agent created ${generatedQuestions.length} candidate questions.`);
 
         // --- Dual-AI Pipeline Step 2: AI Reviewer & Fact-Checker Agent ---
@@ -111,7 +132,7 @@ Instructions:
 3. If any factual error or bad option is found, fix it in the returned object.
 4. If a question is factually broken or ambiguous, set "approved": false.
 
-Return ONLY a valid JSON array of objects in this exact format:
+Return JSON format:
 [
   {
     "approved": true,
@@ -124,29 +145,25 @@ Return ONLY a valid JSON array of objects in this exact format:
 ]`;
 
             let revResponse;
+            const revConfig = { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096, responseMimeType: "application/json" };
             try {
                 const revApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
                 revResponse = await axios.post(revApiUrl, {
                     contents: [{ parts: [{ text: reviewerPrompt }] }],
-                    generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 }
+                    generationConfig: revConfig
                 }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
             } catch (revPrimaryErr) {
                 const revFallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
                 revResponse = await axios.post(revFallbackUrl, {
                     contents: [{ parts: [{ text: reviewerPrompt }] }],
-                    generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 }
+                    generationConfig: revConfig
                 }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
             }
 
             const revRawText = revResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            const revJsonMatch = revRawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-            if (revJsonMatch) {
-                const audited = JSON.parse(revJsonMatch[0]);
-                verifiedQuestions = audited.filter(q => q.approved !== false);
-                console.log(`✅ AI Reviewer Agent approved ${verifiedQuestions.length}/${generatedQuestions.length} factually verified questions.`);
-            } else {
-                verifiedQuestions = generatedQuestions;
-            }
+            const audited = safeParseJsonArray(revRawText);
+            verifiedQuestions = audited.filter(q => q.approved !== false);
+            console.log(`✅ AI Reviewer Agent approved ${verifiedQuestions.length}/${generatedQuestions.length} factually verified questions.`);
         } catch (revErr) {
             console.warn('⚠️ AI Reviewer Agent step encountered an error, falling back to primary generator:', revErr.message);
             verifiedQuestions = generatedQuestions;
