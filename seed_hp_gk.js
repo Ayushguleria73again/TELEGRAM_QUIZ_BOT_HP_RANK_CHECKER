@@ -34,14 +34,9 @@ async function seedHpGk() {
         const questions = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         console.log(`📦 Loaded ${questions.length} Himachal Pradesh GK questions from JSON.`);
 
-        let insertedCount = 0;
-        for (const qData of questions) {
-            await Question.create(qData);
-            insertedCount++;
-        }
-
+        const result = await Question.insertMany(questions);
         console.log(`\n🎉 Himachal Pradesh GK Seeding Complete!`);
-        console.log(`✅ Total HP GK Questions Inserted: ${insertedCount}`);
+        console.log(`✅ Total HP GK Questions Inserted: ${result.length}`);
 
     } catch (err) {
         console.error('❌ Seeding Error:', err.message);
