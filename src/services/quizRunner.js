@@ -49,14 +49,12 @@ const startQuiz = async (options = {}) => {
             console.log('Could not mute chat (bot might not have Restrict Members permission)');
         }
 
-        // 1. Fetch a larger pool of potential questions (e.g., 3x the count)
-        // Define query for category filtering
-        const query = {};
+        // 1. Strict Rotation: Fetch unflagged questions sorted by lastUsed (nulls first, then oldest)
+        const query = { isFlagged: { $ne: true } };
         if (selectedCategories && selectedCategories.length > 0 && !selectedCategories.includes('All')) {
             query.category = { $in: selectedCategories };
         }
 
-        // 1. Strict Rotation: Fetch questions sorted by lastUsed (nulls first, then oldest)
         const allQuestions = await Question.find(query).sort({ lastUsed: 1 });
 
         if (!allQuestions || allQuestions.length < 1) {

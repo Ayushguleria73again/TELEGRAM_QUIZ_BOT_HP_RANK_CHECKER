@@ -189,7 +189,7 @@ bot.onText(/\/random(@\w+)?/, async (msg) => {
     const chatId = msg.chat.id;
 
     try {
-        const pool = await Question.find({}).sort({ lastUsed: 1 }).limit(15);
+        const pool = await Question.find({ isFlagged: { $ne: true } }).sort({ lastUsed: 1 }).limit(15);
         if (!pool || pool.length === 0) {
             return bot.sendMessage(chatId, "⚠️ No HP GK questions available right now.");
         }
@@ -221,15 +221,22 @@ bot.onText(/\/random(@\w+)?/, async (msg) => {
                 `✅ *Correct Answer:* ${q.options[q.correctIndex]}\n` +
                 `ℹ️ *Explanation:* ${q.explanation}`;
 
+            const inlineKeyboard = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "🚩 Report Issue with Question", callback_data: `flag_q_${q._id}` }]
+                    ]
+                }
+            };
+
             try {
-                await bot.sendMessage(chatId, answerReveal, { parse_mode: 'Markdown' });
+                await bot.sendMessage(chatId, answerReveal, { parse_mode: 'Markdown', ...inlineKeyboard });
             } catch (err) {
-                // Fallback to plain text if markdown formatting encounters special characters
                 const plainReveal = `✅ Answer & Explanation\n\n` +
                     `Q: ${q.question}\n\n` +
                     `✅ Correct Answer: ${q.options[q.correctIndex]}\n` +
                     `ℹ️ Explanation: ${q.explanation}`;
-                await bot.sendMessage(chatId, plainReveal).catch(e => console.error('Error sending plain reveal:', e.message));
+                await bot.sendMessage(chatId, plainReveal, inlineKeyboard).catch(e => console.error('Error sending plain reveal:', e.message));
             }
         }, (openPeriod + 1) * 1000);
 
@@ -324,6 +331,42 @@ bot.onText(/\/generate(@\w+)?(?:\s+(\d+))?/, async (msg, match) => {
         bot.editMessageText(errMsg, { chatId, message_id: statusMsg.message_id, parse_mode: 'Markdown' }).catch(() => {
             bot.sendMessage(chatId, errMsg, { parse_mode: 'Markdown' });
         });
+    }
+});
+
+// Admin Command: Manage Flagged/Quarantined Questions
+bot.onText(/\/flagged(@\w+)?/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (ADMIN_ID && chatId.toString() !== ADMIN_ID.toString()) {
+        return bot.sendMessage(chatId, "⚠️ Unauthorised.");
+    }
+
+    try {
+        const flaggedQs = await Question.find({ isFlagged: true });
+        if (!flaggedQs || flaggedQs.length === 0) {
+            return bot.sendMessage(chatId, "✅ No flagged/quarantined questions in database.");
+        }
+
+        await bot.sendMessage(chatId, `🚩 *Found ${flaggedQs.length} Quarantined Questions:*`, { parse_mode: 'Markdown' });
+
+        for (let i = 0; i < Math.min(flaggedQs.length, 5); i++) {
+            const q = flaggedQs[i];
+            const text = `*Q${i + 1}:* ${q.question}\n✅ *Ans:* ${q.options[q.correctIndex]}\n🚩 *Total Flags:* ${q.flagCount}`;
+            const opts = {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: "✅ Approve & Restore", callback_data: `unflag_${q._id}` },
+                            { text: "🗑️ Delete Question", callback_data: `delete_q_${q._id}` }
+                        ]
+                    ]
+                }
+            };
+            await bot.sendMessage(chatId, text, opts);
+        }
+    } catch (err) {
+        bot.sendMessage(chatId, `Error fetching flagged questions: ${err.message}`);
     }
 });
 
@@ -811,5 +854,57 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
 
     await user.save();
 }
+
+// Callback handler for reporting & unflagging questions
+bot.on('callback_query', async (query) => {
+    const data = query.data || '';
+    const chatId = query.message.chat.id;
+
+    if (data.startsWith('flag_q_')) {
+        const qId = data.replace('flag_q_', '');
+        try {
+            const q = await Question.findById(qId);
+            if (!q) {
+                return bot.answerCallbackQuery(query.id, { text: "Question not found." });
+            }
+
+            q.flagCount = (q.flagCount || 0) + 1;
+            if (q.flagCount >= 2) {
+                q.isFlagged = true; // Auto Quarantine
+            }
+            await q.save();
+
+            bot.answerCallbackQuery(query.id, { text: "🚩 Thank you! Issue reported to Admin." });
+
+            if (ADMIN_ID) {
+                const adminMsg = `🚩 *Question Reported by User*\n\n` +
+                    `*Q:* ${q.question}\n` +
+                    `*Total Flags:* ${q.flagCount}\n` +
+                    `*Auto-Quarantined:* ${q.isFlagged ? 'YES 🛑 (Removed from Quiz Pool)' : 'NO ⏳'}`;
+                bot.sendMessage(ADMIN_ID, adminMsg, { parse_mode: 'Markdown' }).catch(() => {});
+            }
+        } catch (err) {
+            console.error('Error handling flag_q:', err.message);
+        }
+    } else if (data.startsWith('unflag_')) {
+        const qId = data.replace('unflag_', '');
+        try {
+            await Question.updateOne({ _id: qId }, { isFlagged: false, flagCount: 0 });
+            bot.answerCallbackQuery(query.id, { text: "✅ Question restored to active pool!" });
+            bot.editMessageText(`✅ *Question Approved & Restored to Active Pool!*`, { chatId, message_id: query.message.message_id, parse_mode: 'Markdown' }).catch(() => {});
+        } catch (err) {
+            console.error('Error unflagging question:', err.message);
+        }
+    } else if (data.startsWith('delete_q_')) {
+        const qId = data.replace('delete_q_', '');
+        try {
+            await Question.deleteOne({ _id: qId });
+            bot.answerCallbackQuery(query.id, { text: "🗑️ Question permanently deleted!" });
+            bot.editMessageText(`🗑️ *Question Deleted Permanently.*`, { chatId, message_id: query.message.message_id, parse_mode: 'Markdown' }).catch(() => {});
+        } catch (err) {
+            console.error('Error deleting question:', err.message);
+        }
+    }
+});
 
 module.exports = bot;

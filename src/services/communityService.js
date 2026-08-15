@@ -21,7 +21,7 @@ const sendDailyTeaser = async () => {
     }
 
     try {
-        const pool = await Question.find({}).sort({ lastUsed: 1 }).limit(10);
+        const pool = await Question.find({ isFlagged: { $ne: true } }).sort({ lastUsed: 1 }).limit(10);
         if (!pool || pool.length === 0) {
             console.log('No questions in DB for daily teaser.');
             return;
