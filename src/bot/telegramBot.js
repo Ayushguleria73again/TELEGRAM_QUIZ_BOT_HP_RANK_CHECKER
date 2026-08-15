@@ -261,8 +261,8 @@ bot.onText(/\/startquiz(@\w+)?/, async (msg) => {
     }
 });
 
-// User Reporting / Flag Command
-bot.onText(/\/flag(@\w+)?(?:\s+(.+))?/, async (msg, match) => {
+// User Reporting / Flag Command (e.g. /flag [question text])
+bot.onText(/\/flag\b(@\w+)?(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const queryStr = match[2] ? match[2].trim() : '';
 
@@ -361,17 +361,17 @@ bot.onText(/\/generate(@\w+)?(?:\s+(\d+))?/, async (msg, match) => {
     }
 });
 
-// Admin Command: Manage Flagged/Quarantined Questions
-bot.onText(/\/flagged(@\w+)?/, async (msg) => {
+// Admin Command: Manage Flagged/Quarantined Questions (matches /flagged or /flaged)
+bot.onText(/\/(flagged|flaged)(@\w+)?/i, async (msg) => {
     const chatId = msg.chat.id;
     if (ADMIN_ID && chatId.toString() !== ADMIN_ID.toString()) {
         return bot.sendMessage(chatId, "⚠️ Unauthorised.");
     }
 
     try {
-        const flaggedQs = await Question.find({ isFlagged: true });
+        const flaggedQs = await Question.find({ $or: [{ isFlagged: true }, { flagCount: { $gt: 0 } }] });
         if (!flaggedQs || flaggedQs.length === 0) {
-            return bot.sendMessage(chatId, "✅ No flagged/quarantined questions in database.");
+            return bot.sendMessage(chatId, "✅ No reported/quarantined questions in database.");
         }
 
         await bot.sendMessage(chatId, `🚩 *Found ${flaggedQs.length} Quarantined Questions:*`, { parse_mode: 'Markdown' });
