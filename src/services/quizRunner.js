@@ -150,33 +150,23 @@ const startQuiz = async (options = {}) => {
         await bot.sendMessage(CHANNEL_ID, "🏁 Quiz Finished!\n\nGreat job everyone 👏\nNow let's review the correct answers.");
         await delay(2000);
 
-        // 5. Aggregate and send explanations
-        let explanationsText = "📚 Quiz Answers & Explanations\n\n";
-        const messages = [];
+        // 5. Aggregate and send explanations in clean batches of 5 questions each
+        const BATCH_SIZE = 5;
+        const totalBatches = Math.ceil(selectedQuestions.length / BATCH_SIZE);
 
-        for (let i = 0; i < selectedQuestions.length; i++) {
-            const q = selectedQuestions[i];
-            const chunk = `Q${i + 1}. ${q.question}\n✅ Answer: ${q.options[q.correctIndex]}\nℹ️ ${q.explanation}\n\n`;
+        for (let batchIdx = 0; batchIdx < totalBatches; batchIdx++) {
+            const startQ = batchIdx * BATCH_SIZE;
+            const endQ = Math.min(selectedQuestions.length, (batchIdx + 1) * BATCH_SIZE);
 
-            // Check for Telegram message length limit (4096)
-            if ((explanationsText.length + chunk.length) > 4000) {
-                messages.push(explanationsText);
-                explanationsText = chunk;
-            } else {
-                explanationsText += chunk;
-            }
-        }
-        messages.push(explanationsText);
-
-        for (let idx = 0; idx < messages.length; idx++) {
-            const msg = messages[idx];
-            // Create inline report buttons for questions in this session
+            let batchText = `📚 *Quiz Answers & Explanations (${startQ + 1} - ${endQ})*\n\n`;
             const inlineButtons = [];
-            const startQ = idx * 5;
-            const endQ = Math.min(selectedQuestions.length, (idx + 1) * 5);
             const row = [];
+
             for (let qIdx = startQ; qIdx < endQ; qIdx++) {
-                row.push({ text: `🚩 Report Q${qIdx + 1}`, callback_data: `flag_q_${selectedQuestions[qIdx]._id}` });
+                const q = selectedQuestions[qIdx];
+                batchText += `*Q${qIdx + 1}.* ${q.question}\n✅ *Answer:* ${q.options[q.correctIndex]}\nℹ️ ${q.explanation}\n\n`;
+
+                row.push({ text: `🚩 Report Q${qIdx + 1}`, callback_data: `flag_q_${q._id}` });
                 if (row.length === 2) {
                     inlineButtons.push([...row]);
                     row.length = 0;
@@ -184,18 +174,19 @@ const startQuiz = async (options = {}) => {
             }
             if (row.length > 0) inlineButtons.push(row);
 
-            const sentMsg = await bot.sendMessage(CHANNEL_ID, msg, {
+            const sentMsg = await bot.sendMessage(CHANNEL_ID, batchText, {
+                parse_mode: 'Markdown',
                 reply_markup: { inline_keyboard: inlineButtons }
             });
 
-            if (idx === messages.length - 1) {
+            if (batchIdx === totalBatches - 1) {
                 try {
                     await bot.pinChatMessage(CHANNEL_ID, sentMsg.message_id);
                 } catch (e) {
                     console.log('Could not pin message');
                 }
             }
-            await delay(1000);
+            await delay(1200);
         }
 
         // 6. Final Leaderboard (Group Mode only)
