@@ -35,6 +35,9 @@ bot.setMyCommands([
     { command: 'id', description: '🆔 Get your Telegram ID' }
 ]).catch(err => console.error('Error setting commands:', err));
 
+// In-memory duel lock per group to prevent parallel duel launches
+const groupDuelLocks = new Set();
+
 // Start command
 bot.onText(/\/start(@\w+)?/, (msg) => {
     if (checkRateLimit(msg.from.id)) return;
@@ -119,7 +122,7 @@ bot.onText(/\/info(@\w+)?/, (msg) => {
 });
 
 // Personal info command
-bot.onText(/\/me(@\w+)?/, async (msg) => {
+bot.onText(/^\/me(@\w+)?(?:\s+.*)?$/i, async (msg) => {
     if (checkRateLimit(msg.from.id)) return;
     const userId = msg.from.id;
     const User = require('../models/User');
@@ -128,22 +131,24 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
     try {
         const user = await User.findOne({ telegramId: userId.toString() });
         if (!user || user.totalScore === 0) {
-            return bot.sendMessage(msg.chat.id, "❌ You haven't earned any points yet! Participate in the next quiz to start your journey. 🚀");
+            return bot.sendMessage(msg.chat.id, "❌ You haven't earned any points yet! Participate in the next quiz or 1v1 duel to start your journey. 🚀");
         }
 
-        const rank = getRankDetails(user.totalScore);
+        const rank = getRankDetails(user.totalScore || 0);
 
-        // Calculate Accuracy
-        const accuracy = user.stats.totalAttempted > 0
-            ? ((user.stats.totalCorrect / user.stats.totalAttempted) * 100).toFixed(1)
+        // Calculate Accuracy safely
+        const totalAttempted = (user.stats && user.stats.totalAttempted) || 0;
+        const totalCorrect = (user.stats && user.stats.totalCorrect) || 0;
+        const accuracy = totalAttempted > 0
+            ? ((totalCorrect / totalAttempted) * 100).toFixed(1)
             : 0;
 
-        // Find Best Category
+        // Find Best Category safely
         let bestCategory = "None";
         let bestAcc = 0;
         if (user.stats && user.stats.categoryStats && typeof user.stats.categoryStats.forEach === 'function') {
             user.stats.categoryStats.forEach((val, key) => {
-                const acc = (val.correct / val.attempted) * 100;
+                const acc = val.attempted > 0 ? (val.correct / val.attempted) * 100 : 0;
                 if (acc > bestAcc && val.attempted >= 5) {
                     bestAcc = acc;
                     bestCategory = key;
@@ -158,9 +163,9 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
             { min: 5000, title: 'Rank Master', emoji: '👑' }
         ];
 
-        const nextTier = tiers.find(t => user.totalScore < t.min);
+        const nextTier = tiers.find(t => (user.totalScore || 0) < t.min);
         if (nextTier) {
-            const diff = nextTier.min - user.totalScore;
+            const diff = nextTier.min - (user.totalScore || 0);
             nextRankText = `\n\n🎯 *Next Goal:* ${diff} points to reach *${nextTier.title}* ${nextTier.emoji}`;
         } else {
             nextRankText = `\n\n👑 You have reached the highest rank! You are a *Rank Master*!`;
@@ -178,23 +183,29 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
               `• Daily Energy: ${dailyDuelsUsed}/10 duels used today ⚡`
             : `\n\n⚔️ *1v1 Duel Arena Record:* 0 duels played (${dailyDuelsUsed}/10 energy today). Type \`/challenge\` to battle!`;
 
+        const badgeDisplay = formatBadges(user.badges);
+
         const profileText = `👤 *Your Professional Profile*\n\n` +
             `🏆 *Current Rank:* ${rank.title} ${rank.emoji}\n` +
-            `🔥 *Daily Streak:* ${user.currentStreak} days (Best: ${user.longestStreak || user.currentStreak})\n` +
-            `✨ *Total Points:* ${user.totalScore}\n\n` +
+            `🔥 *Daily Streak:* ${user.currentStreak || 0} days (Best: ${user.longestStreak || user.currentStreak || 0})\n` +
+            `✨ *Total Points:* ${user.totalScore || 0}\n\n` +
             `📊 *Performance Analytics:*\n` +
             `• Accuracy: ${accuracy}%\n` +
-            `• Attempted: ${user.stats.totalAttempted}\n` +
+            `• Attempted: ${totalAttempted}\n` +
             `• Best Subject: ${bestCategory}${bestAcc > 0 ? ` (${bestAcc.toFixed(0)}%)` : ''}` +
             battleSection + `\n\n` +
             `🎖️ *Achievement Badges:*\n${badgeDisplay}\n\n` +
-            `🌟 *Monthly Score:* ${user.monthlyScore}\n` +
-            `📊 *Weekly Score:* ${user.weeklyScore}` +
+            `🌟 *Monthly Score:* ${user.monthlyScore || 0}\n` +
+            `📊 *Weekly Score:* ${user.weeklyScore || 0}` +
             nextRankText;
 
-        bot.sendMessage(msg.chat.id, profileText, { parse_mode: 'Markdown' });
+        await bot.sendMessage(msg.chat.id, profileText, { parse_mode: 'Markdown' }).catch(err => {
+            console.error('Markdown send error, falling back to plain text:', err.message);
+            return bot.sendMessage(msg.chat.id, profileText.replace(/[*_`]/g, ''));
+        });
     } catch (err) {
         console.error('Error fetching user profile:', err);
+        bot.sendMessage(msg.chat.id, "⚠️ Error retrieving your profile. Please try again in a moment.");
     }
 });
 
@@ -478,6 +489,7 @@ bot.onText(/\/(reset_duel|cancel_duel)(@\w+)?/i, async (msg) => {
     const Battle = require('../models/Battle');
 
     try {
+        groupDuelLocks.delete(chatId.toString());
         const res = await Battle.updateMany(
             { groupChatId: chatId.toString(), status: { $in: ['ACCEPTED', 'PENDING'] } },
             { $set: { status: 'COMPLETED' } }
@@ -815,6 +827,14 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- ACCEPTED ---
         try {
+            // Memory Arena Lock: Prevent parallel clicks launching two battles simultaneously
+            if (groupDuelLocks.has(chatId.toString())) {
+                return bot.answerCallbackQuery(callbackQuery.id, {
+                    text: "⚔️ A duel is already starting or running in this arena! Please wait for it to finish.",
+                    show_alert: true
+                });
+            }
+
             // Concurrency Gate: Check if another battle is actively in progress (with 110s auto-expiry TTL)
             const runningBattle = await Battle.findOne({
                 groupChatId: chatId.toString(),
@@ -833,6 +853,12 @@ bot.on('callback_query', async (callbackQuery) => {
                     });
                 }
             }
+
+            // Acquire Arena Lock
+            groupDuelLocks.add(chatId.toString());
+
+            // Immediately strip inline buttons to prevent duplicate acceptances
+            await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: message.message_id }).catch(() => {});
 
             // Daily Battle Limit Gate (Max 10 Battles Per Day for Acceptor)
             const today = new Date().toISOString().split('T')[0];
@@ -1087,6 +1113,8 @@ async function runGroupBattle(battleId, chatId) {
     } catch (err) {
         console.error('Error running group battle:', err);
         await Battle.findByIdAndUpdate(battleId, { $set: { status: 'COMPLETED' } }).catch(() => {});
+    } finally {
+        groupDuelLocks.delete(chatId.toString());
     }
 }
 
