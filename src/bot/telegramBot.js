@@ -86,7 +86,10 @@ bot.onText(/\/leaderboard(@\w+)?/, async (msg) => {
                     { text: "📊 Weekly", callback_data: "lb_weekly" },
                     { text: "🌟 Monthly", callback_data: "lb_monthly" }
                 ],
-                [{ text: "🏆 All-Time", callback_data: "lb_alltime" }]
+                [
+                    { text: "🏆 All-Time", callback_data: "lb_alltime" },
+                    { text: "⚔️ Duel Champions", callback_data: "lb_duels" }
+                ]
             ]
         }
     };
@@ -138,13 +141,15 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
         // Find Best Category
         let bestCategory = "None";
         let bestAcc = 0;
-        user.stats.categoryStats.forEach((val, key) => {
-            const acc = (val.correct / val.attempted) * 100;
-            if (acc > bestAcc && val.attempted >= 5) {
-                bestAcc = acc;
-                bestCategory = key;
-            }
-        });
+        if (user.stats && user.stats.categoryStats && typeof user.stats.categoryStats.forEach === 'function') {
+            user.stats.categoryStats.forEach((val, key) => {
+                const acc = (val.correct / val.attempted) * 100;
+                if (acc > bestAcc && val.attempted >= 5) {
+                    bestAcc = acc;
+                    bestCategory = key;
+                }
+            });
+        }
 
         let nextRankText = "";
         const tiers = [
@@ -162,7 +167,16 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
         }
 
         const { formatBadges } = require('../utils/badgeUtils');
-        const badgeDisplay = formatBadges(user.badges);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const bStats = user.battleStats || { totalBattles: 0, battlesWon: 0, battlesLost: 0, battlesDrawn: 0, currentWinStreak: 0, bestWinStreak: 0, dailyBattlesCount: 0, lastBattleDate: todayStr };
+        const bWinRate = bStats.totalBattles > 0 ? ((bStats.battlesWon / bStats.totalBattles) * 100).toFixed(0) : 0;
+        const dailyDuelsUsed = (bStats.lastBattleDate === todayStr) ? (bStats.dailyBattlesCount || 0) : 0;
+        const battleSection = bStats.totalBattles > 0
+            ? `\n\n⚔️ *1v1 Duel Arena Record:*\n` +
+              `• Record: ${bStats.battlesWon}W - ${bStats.battlesLost}L - ${bStats.battlesDrawn}D (${bWinRate}% Win Rate)\n` +
+              `• Current Streak: ${bStats.currentWinStreak}x 🔥 (Best: ${bStats.bestWinStreak || bStats.currentWinStreak}x 🏆)\n` +
+              `• Daily Energy: ${dailyDuelsUsed}/10 duels used today ⚡`
+            : `\n\n⚔️ *1v1 Duel Arena Record:* 0 duels played (${dailyDuelsUsed}/10 energy today). Type \`/challenge\` to battle!`;
 
         const profileText = `👤 *Your Professional Profile*\n\n` +
             `🏆 *Current Rank:* ${rank.title} ${rank.emoji}\n` +
@@ -171,7 +185,8 @@ bot.onText(/\/me(@\w+)?/, async (msg) => {
             `📊 *Performance Analytics:*\n` +
             `• Accuracy: ${accuracy}%\n` +
             `• Attempted: ${user.stats.totalAttempted}\n` +
-            `• Best Subject: ${bestCategory}${bestAcc > 0 ? ` (${bestAcc.toFixed(0)}%)` : ''}\n\n` +
+            `• Best Subject: ${bestCategory}${bestAcc > 0 ? ` (${bestAcc.toFixed(0)}%)` : ''}` +
+            battleSection + `\n\n` +
             `🎖️ *Achievement Badges:*\n${badgeDisplay}\n\n` +
             `🌟 *Monthly Score:* ${user.monthlyScore}\n` +
             `📊 *Weekly Score:* ${user.weeklyScore}` +
@@ -324,6 +339,22 @@ bot.onText(/\/challenge\b(@\w+)?(?:\s+(.+))?/i, async (msg, match) => {
                     `⏳ Please wait ~1 minute for their match to finish (or type \`/reset_duel\` to unlock).`,
                     { parse_mode: 'Markdown' }
                 );
+            }
+        }
+
+        // Daily Battle Limit Gate (Max 10 Battles Per Day)
+        const today = new Date().toISOString().split('T')[0];
+        const challengerUser = await User.findOne({ telegramId: challengerId });
+        if (challengerUser && challengerUser.battleStats) {
+            const lastDate = challengerUser.battleStats.lastBattleDate;
+            const countToday = (lastDate === today) ? (challengerUser.battleStats.dailyBattlesCount || 0) : 0;
+            if (countToday >= 10) {
+                const coolMsg = `⚔️ *Whoa, Slow Down Champ! Take Some Rest!* 🛡️☕\n\n` +
+                    `🔥 *Warrior ${challengerName}*, you have already fought *10 epic battles today (10/10)*!\n\n` +
+                    `Your sword needs sharpening and your warrior stamina is depleted. 🗡️✨\n` +
+                    `🔋 *Arena Energy Restores Tomorrow at Midnight!*\n\n` +
+                    `Rest up, revise your HP GK notes, and return tomorrow to conquer the arena! 👑🚀`;
+                return bot.sendMessage(chatId, coolMsg, { parse_mode: 'Markdown' });
             }
         }
 
@@ -674,6 +705,47 @@ bot.on('callback_query', async (callbackQuery) => {
         const type = data.replace('lb_', '');
         const User = require('../models/User');
 
+        if (type === 'duels') {
+            const topDuelists = await User.find({ 'battleStats.battlesWon': { $gt: 0 } })
+                .sort({ 'battleStats.battlesWon': -1, 'battleStats.currentWinStreak': -1 })
+                .limit(10);
+
+            if (topDuelists.length === 0) {
+                bot.editMessageText("⚔️ *Duel Champions Arena*\n\nNo duel wins recorded yet! Start a 1v1 duel with `/challenge` to claim the throne! 👑", {
+                    chat_id: chatId,
+                    message_id: message.message_id,
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [[{ text: "⬅️ Back", callback_data: "lb_main" }]]
+                    }
+                });
+            } else {
+                const { getRankDetails } = require('../utils/rankUtils');
+                let lbText = `✨ ⚔️ *Top 10 Duel Champions* ⚔️ ✨\n\n`;
+                const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+
+                topDuelists.forEach((u, idx) => {
+                    const name = u.firstName + (u.lastName ? ` ${u.lastName}` : '');
+                    const rank = getRankDetails(u.totalScore);
+                    const b = u.battleStats;
+                    const streakTag = b.currentWinStreak >= 2 ? ` 🔥 *${b.currentWinStreak}x Streak!*` : '';
+                    lbText += `${medals[idx]} ${rank.emoji} *${name}*: ${b.battlesWon} Wins (${b.totalBattles} played)${streakTag}\n`;
+                });
+
+                bot.editMessageText(lbText, {
+                    chat_id: chatId,
+                    message_id: message.message_id,
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [[{ text: "⬅️ Back", callback_data: "lb_main" }]]
+                    }
+                }).catch(err => {
+                    if (!err.message.includes('message is not modified')) console.error('Error editing duel leaderboard:', err.message);
+                });
+            }
+            return;
+        }
+
         let sortField = 'weeklyScore';
         let title = "📊 Weekly Leaderboard";
 
@@ -762,6 +834,21 @@ bot.on('callback_query', async (callbackQuery) => {
                 }
             }
 
+            // Daily Battle Limit Gate (Max 10 Battles Per Day for Acceptor)
+            const today = new Date().toISOString().split('T')[0];
+            const User = require('../models/User');
+            const acceptorUser = await User.findOne({ telegramId: acceptingUserId });
+            if (acceptorUser && acceptorUser.battleStats) {
+                const lastDate = acceptorUser.battleStats.lastBattleDate;
+                const countToday = (lastDate === today) ? (acceptorUser.battleStats.dailyBattlesCount || 0) : 0;
+                if (countToday >= 10) {
+                    return bot.answerCallbackQuery(callbackQuery.id, {
+                        text: "🛡️ Whoa, slow down champ! You've fought 10/10 battles today. Take some rest and recharge for tomorrow! ☕⚡",
+                        show_alert: true
+                    });
+                }
+            }
+
             const questions = await Question.aggregate([{ $sample: { size: 5 } }]);
             const questionData = questions.map(q => ({ questionId: q._id, correctIndex: q.correctIndex }));
 
@@ -778,11 +865,14 @@ bot.on('callback_query', async (callbackQuery) => {
                 questions: questionData
             });
 
-            // Get names for display
-            const User = require('../models/User');
+            // Get names for display & increment daily battle count for both players
             const cUser = await User.findOne({ telegramId: challengerId });
             battle.challengerName = cUser ? (cUser.firstName + (cUser.lastName ? ` ${cUser.lastName}` : '')).trim() : "Challenger";
             await battle.save();
+
+            // Track daily battle usage
+            await incrementDailyBattles(challengerId, today);
+            await incrementDailyBattles(actualChallengedId, today);
 
             await bot.editMessageText(
                 `⚔️ *DUEL ACCEPTED! COMMENCING LIVE IN THIS GROUP!* ⚔️\n\n` +
@@ -974,12 +1064,17 @@ async function runGroupBattle(battleId, chatId) {
             `⚔️ *${finalBattle.challengerName}* [ *${p1Score}* ] 🆚 *${finalBattle.challengedName}* [ *${p2Score}* ]\n\n`;
 
         if (p1Score > p2Score) {
-            resultText += `🥇 Winner: *${finalBattle.challengerName}*! 🎉👑 (+${p1Score} Points)\n` +
+            const winnerStats = await recordBattleOutcome(finalBattle.challengerId, finalBattle.challengedId, false);
+            const streakStr = winnerStats && winnerStats.currentWinStreak >= 2 ? ` (🔥 *${winnerStats.currentWinStreak}x Win Streak!*)` : '';
+            resultText += `🥇 Winner: *${finalBattle.challengerName}*! 🎉👑 (+${p1Score} Points)${streakStr}\n` +
                           `👏 Tough fight by *${finalBattle.challengedName}*! (+${p2Score} Points)`;
         } else if (p2Score > p1Score) {
-            resultText += `🥇 Winner: *${finalBattle.challengedName}*! 🎉👑 (+${p2Score} Points)\n` +
+            const winnerStats = await recordBattleOutcome(finalBattle.challengedId, finalBattle.challengerId, false);
+            const streakStr = winnerStats && winnerStats.currentWinStreak >= 2 ? ` (🔥 *${winnerStats.currentWinStreak}x Win Streak!*)` : '';
+            resultText += `🥇 Winner: *${finalBattle.challengedName}*! 🎉👑 (+${p2Score} Points)${streakStr}\n` +
                           `👏 Tough fight by *${finalBattle.challengerName}*! (+${p1Score} Points)`;
         } else {
+            await recordBattleOutcome(finalBattle.challengerId, finalBattle.challengedId, true);
             resultText += `🤝 It's a DRAW! Both warriors scored ${p1Score}/5! ✨`;
         }
 
@@ -992,6 +1087,78 @@ async function runGroupBattle(battleId, chatId) {
     } catch (err) {
         console.error('Error running group battle:', err);
         await Battle.findByIdAndUpdate(battleId, { $set: { status: 'COMPLETED' } }).catch(() => {});
+    }
+}
+
+/**
+ * Updates battle wins, losses, draws, and win streaks for participants
+ */
+async function recordBattleOutcome(winnerId, loserId, isDraw = false) {
+    const User = require('../models/User');
+    try {
+        if (isDraw) {
+            await User.updateOne({ telegramId: winnerId.toString() }, { $inc: { 'battleStats.totalBattles': 1, 'battleStats.battlesDrawn': 1 } });
+            await User.updateOne({ telegramId: loserId.toString() }, { $inc: { 'battleStats.totalBattles': 1, 'battleStats.battlesDrawn': 1 } });
+            return null;
+        }
+
+        // Winner stats
+        const winner = await User.findOne({ telegramId: winnerId.toString() });
+        let winnerStats = null;
+        if (winner) {
+            if (!winner.battleStats) {
+                winner.battleStats = { totalBattles: 0, battlesWon: 0, battlesLost: 0, battlesDrawn: 0, currentWinStreak: 0, bestWinStreak: 0 };
+            }
+            winner.battleStats.totalBattles = (winner.battleStats.totalBattles || 0) + 1;
+            winner.battleStats.battlesWon = (winner.battleStats.battlesWon || 0) + 1;
+            winner.battleStats.currentWinStreak = (winner.battleStats.currentWinStreak || 0) + 1;
+            if (winner.battleStats.currentWinStreak > (winner.battleStats.bestWinStreak || 0)) {
+                winner.battleStats.bestWinStreak = winner.battleStats.currentWinStreak;
+            }
+            await winner.save();
+            winnerStats = winner.battleStats;
+        }
+
+        // Loser stats
+        const loser = await User.findOne({ telegramId: loserId.toString() });
+        if (loser) {
+            if (!loser.battleStats) {
+                loser.battleStats = { totalBattles: 0, battlesWon: 0, battlesLost: 0, battlesDrawn: 0, currentWinStreak: 0, bestWinStreak: 0 };
+            }
+            loser.battleStats.totalBattles = (loser.battleStats.totalBattles || 0) + 1;
+            loser.battleStats.battlesLost = (loser.battleStats.battlesLost || 0) + 1;
+            loser.battleStats.currentWinStreak = 0; // Streak reset on defeat!
+            await loser.save();
+        }
+
+        return winnerStats;
+    } catch (e) {
+        console.error('Error recording battle outcome:', e.message);
+        return null;
+    }
+}
+
+/**
+ * Increments the daily battle count for a player
+ */
+async function incrementDailyBattles(userId, today) {
+    const User = require('../models/User');
+    try {
+        const user = await User.findOne({ telegramId: userId.toString() });
+        if (user) {
+            if (!user.battleStats) {
+                user.battleStats = { totalBattles: 0, battlesWon: 0, battlesLost: 0, battlesDrawn: 0, currentWinStreak: 0, bestWinStreak: 0, dailyBattlesCount: 0, lastBattleDate: today };
+            }
+            if (user.battleStats.lastBattleDate !== today) {
+                user.battleStats.dailyBattlesCount = 1;
+                user.battleStats.lastBattleDate = today;
+            } else {
+                user.battleStats.dailyBattlesCount = (user.battleStats.dailyBattlesCount || 0) + 1;
+            }
+            await user.save();
+        }
+    } catch (err) {
+        console.error('Error incrementing daily battles:', err.message);
     }
 }
 
@@ -1091,19 +1258,29 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
         user.lastParticipationDate = today;
     }
 
+    // Ensure stats objects exist on user document
+    if (!user.stats) {
+        user.stats = { totalCorrect: 0, totalAttempted: 0, categoryStats: new Map() };
+    }
+    if (!user.stats.categoryStats || typeof user.stats.categoryStats.get !== 'function') {
+        user.stats.categoryStats = new Map();
+    }
+    if (!user.unlockedRanks) user.unlockedRanks = [];
+    if (!user.badges) user.badges = [];
+
     // Stats Logic
-    user.stats.totalAttempted += 1;
+    user.stats.totalAttempted = (user.stats.totalAttempted || 0) + 1;
     if (isCorrect) {
-        user.stats.totalCorrect += 1;
-        user.totalScore += 1;
-        user.weeklyScore += 1;
-        user.monthlyScore += 1;
+        user.stats.totalCorrect = (user.stats.totalCorrect || 0) + 1;
+        user.totalScore = (user.totalScore || 0) + 1;
+        user.weeklyScore = (user.weeklyScore || 0) + 1;
+        user.monthlyScore = (user.monthlyScore || 0) + 1;
     }
 
     // Category Stats Logic
     const catStat = user.stats.categoryStats.get(category) || { correct: 0, attempted: 0 };
-    catStat.attempted += 1;
-    if (isCorrect) catStat.correct += 1;
+    catStat.attempted = (catStat.attempted || 0) + 1;
+    if (isCorrect) catStat.correct = (catStat.correct || 0) + 1;
     user.stats.categoryStats.set(category, catStat);
 
     user.lastActivity = new Date();

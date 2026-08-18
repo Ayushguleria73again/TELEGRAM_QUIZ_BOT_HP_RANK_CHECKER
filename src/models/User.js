@@ -55,6 +55,16 @@ const userSchema = new mongoose.Schema({
             },
             default: {}
         }
+    },
+    battleStats: {
+        totalBattles: { type: Number, default: 0 },
+        battlesWon: { type: Number, default: 0 },
+        battlesLost: { type: Number, default: 0 },
+        battlesDrawn: { type: Number, default: 0 },
+        currentWinStreak: { type: Number, default: 0 },
+        bestWinStreak: { type: Number, default: 0 },
+        dailyBattlesCount: { type: Number, default: 0 },
+        lastBattleDate: { type: String } // YYYY-MM-DD
     }
 }, {
     timestamps: true
@@ -63,6 +73,8 @@ const userSchema = new mongoose.Schema({
 // Indexing for faster leaderboard queries
 userSchema.index({ weeklyScore: -1 });
 userSchema.index({ monthlyScore: -1 });
+userSchema.index({ 'battleStats.battlesWon': -1 });
+userSchema.index({ 'battleStats.currentWinStreak': -1 });
 userSchema.index({ totalScore: -1 });
 
 const User = mongoose.model('User', userSchema);

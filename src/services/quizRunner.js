@@ -122,13 +122,18 @@ const startQuiz = async (options = {}) => {
                     explanation: explanationText
                 });
 
-                // Register poll in session for score tracking
-                session.questions.push({
-                    pollId: poll.poll.id,
-                    correctIndex: q.correctIndex,
-                    category: q.category
+                const pollId = (poll.poll && poll.poll.id) || poll.poll_id || String(poll.message_id);
+
+                // Register poll in session for score tracking via atomic $push to prevent VersionError
+                await QuizSession.findByIdAndUpdate(session._id, {
+                    $push: {
+                        questions: {
+                            pollId,
+                            correctIndex: q.correctIndex,
+                            category: q.category
+                        }
+                    }
                 });
-                await session.save();
 
                 // Update lastUsed date (gracefully)
                 try {
