@@ -999,24 +999,6 @@ bot.on('poll_answer', async (answer) => {
     } catch (err) {
         console.error('Error processing poll answer:', err);
     }
-});.challengerScore) {
-                    resultText += `🥇 Winner: *${battle.challengedName}*! 🎉`;
-                } else {
-                    resultText += `🤝 It's a DRAW! Well played both. ✨`;
-                }
-
-                bot.sendMessage(battle.groupChatId, resultText, { parse_mode: 'Markdown' });
-                battle.status = 'COMPLETED';
-                await battle.save();
-            }
-
-            // Also update all-time stats for battles!
-            await updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, 'Duel', today, yesterday);
-        }
-
-    } catch (err) {
-        console.error('Error processing poll answer:', err);
-    }
 });
 
 // Helper Function for User Stats
