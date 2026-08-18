@@ -305,20 +305,26 @@ bot.onText(/\/challenge\b(@\w+)?(?:\s+(.+))?/i, async (msg, match) => {
     const Battle = require('../models/Battle');
 
     try {
-        // Concurrency Gate: Only 1 duel can run at a time per group!
+        // Concurrency Gate: Only 1 duel can run at a time per group (with 110s auto-expiry TTL)
         const activeBattle = await Battle.findOne({
             groupChatId: chatId.toString(),
             status: 'ACCEPTED'
         });
 
         if (activeBattle) {
-            return bot.sendMessage(
-                chatId,
-                `⚔️ *A 1v1 DUEL IS ALREADY IN PROGRESS!* ⚔️\n\n` +
-                `🔥 *${activeBattle.challengerName}* and *${activeBattle.challengedName}* are currently battling in this arena!\n\n` +
-                `⏳ Please wait ~1 minute for their match to finish before starting a new duel.`,
-                { parse_mode: 'Markdown' }
-            );
+            const ageMs = Date.now() - new Date(activeBattle.updatedAt || activeBattle.createdAt).getTime();
+            if (ageMs > 110000) { // Older than ~1.8 minutes -> Auto-expire stale/restarted duel
+                activeBattle.status = 'COMPLETED';
+                await activeBattle.save();
+            } else {
+                return bot.sendMessage(
+                    chatId,
+                    `⚔️ *A 1v1 DUEL IS ALREADY IN PROGRESS!* ⚔️\n\n` +
+                    `🔥 *${activeBattle.challengerName}* and *${activeBattle.challengedName}* are currently battling in this arena!\n\n` +
+                    `⏳ Please wait ~1 minute for their match to finish (or type \`/reset_duel\` to unlock).`,
+                    { parse_mode: 'Markdown' }
+                );
+            }
         }
 
         let challengedUser = null;
@@ -432,6 +438,27 @@ bot.onText(/\/challenge\b(@\w+)?(?:\s+(.+))?/i, async (msg, match) => {
         bot.sendMessage(chatId, inviteMsg, options);
     } catch (err) {
         console.error('Error initiating challenge:', err);
+    }
+});
+
+// Reset / Unlock Duel Arena Command
+bot.onText(/\/(reset_duel|cancel_duel)(@\w+)?/i, async (msg) => {
+    const chatId = msg.chat.id;
+    const Battle = require('../models/Battle');
+
+    try {
+        const res = await Battle.updateMany(
+            { groupChatId: chatId.toString(), status: { $in: ['ACCEPTED', 'PENDING'] } },
+            { $set: { status: 'COMPLETED' } }
+        );
+
+        if (res.modifiedCount > 0) {
+            bot.sendMessage(chatId, "🔓 *Arena Unlocked!* All active/pending duels in this group have been cleared. Type `/challenge` to start fresh! ⚔️", { parse_mode: 'Markdown' });
+        } else {
+            bot.sendMessage(chatId, "✨ The arena is already free! Type `/challenge` to start a duel.", { parse_mode: 'Markdown' });
+        }
+    } catch (err) {
+        bot.sendMessage(chatId, `Error resetting arena: ${err.message}`);
     }
 });
 
@@ -716,17 +743,23 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- ACCEPTED ---
         try {
-            // Concurrency Gate: Check if another battle is already in progress
+            // Concurrency Gate: Check if another battle is actively in progress (with 110s auto-expiry TTL)
             const runningBattle = await Battle.findOne({
                 groupChatId: chatId.toString(),
                 status: 'ACCEPTED'
             });
 
             if (runningBattle) {
-                return bot.answerCallbackQuery(callbackQuery.id, {
-                    text: `⚠️ A 1v1 duel between ${runningBattle.challengerName} and ${runningBattle.challengedName} is already running in this group! Please wait for it to finish.`,
-                    show_alert: true
-                });
+                const ageMs = Date.now() - new Date(runningBattle.updatedAt || runningBattle.createdAt).getTime();
+                if (ageMs > 110000) {
+                    runningBattle.status = 'COMPLETED';
+                    await runningBattle.save();
+                } else {
+                    return bot.answerCallbackQuery(callbackQuery.id, {
+                        text: `⚠️ A 1v1 duel between ${runningBattle.challengerName} and ${runningBattle.challengedName} is already running! Please wait for it to finish.`,
+                        show_alert: true
+                    });
+                }
             }
 
             const questions = await Question.aggregate([{ $sample: { size: 5 } }]);
