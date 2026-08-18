@@ -718,40 +718,27 @@ bot.on('callback_query', async (callbackQuery) => {
             // Get names for display
             const User = require('../models/User');
             const cUser = await User.findOne({ telegramId: challengerId });
-            battle.challengerName = cUser ? cUser.firstName : "Challenger";
+            battle.challengerName = cUser ? (cUser.firstName + (cUser.lastName ? ` ${cUser.lastName}` : '')).trim() : "Challenger";
             await battle.save();
 
-            await bot.editMessageText(`⚔️ *DUEL STARTED!* \n\n*${battle.challengerName}* vs *${actualChallengedName}*\nCheck your private messages to play! 🚀`, {
-                chat_id: chatId,
-                message_id: message.message_id,
-                parse_mode: 'Markdown'
-            });
+            await bot.editMessageText(
+                `⚔️ *DUEL ACCEPTED! COMMENCING LIVE IN THIS GROUP!* ⚔️\n\n` +
+                `🔥 *${battle.challengerName}* 🆚 *${actualChallengedName}*\n\n` +
+                `🔹 Total Rounds: 5 (15 seconds per question)\n` +
+                `🔹 Both duelists: tap your answers in the polls below!\n\n` +
+                `🏁 *Round 1 starts in 3 seconds!*`,
+                {
+                    chat_id: chatId,
+                    message_id: message.message_id,
+                    parse_mode: 'Markdown'
+                }
+            );
 
-            // Start the private duel by sending the first question to both
-            const firstQId = questions[0].questionId;
-            const qObj = await Question.findById(firstQId);
+            // Trigger Live In-Group Duel Runner asynchronously
+            setTimeout(() => {
+                runGroupBattle(battle._id, chatId);
+            }, 3000);
 
-            const sendBattlePoll = async (pId, qText, options, cIdx, qNum) => {
-                let truncatedQ = `Round ${qNum}/5: ${qText}`;
-                if (truncatedQ.length > 300) truncatedQ = truncatedQ.substring(0, 297) + '...';
-
-                const truncatedOptions = options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
-
-                const poll = await bot.sendPoll(pId, truncatedQ, truncatedOptions, {
-                    type: 'quiz',
-                    correct_option_id: cIdx,
-                    is_anonymous: false,
-                    open_period: 20
-                });
-                return (poll.poll && poll.poll.id) || poll.poll_id || String(poll.message_id);
-            };
-
-            const p1Id = await sendBattlePoll(challengerId, qObj.question, qObj.options, qObj.correctIndex, 1);
-            const p2Id = await sendBattlePoll(actualChallengedId, qObj.question, qObj.options, qObj.correctIndex, 1);
-
-            battle.pollIds.set(p1Id, challengerId);
-            battle.pollIds.set(p2Id, actualChallengedId);
-            await battle.save();
         } catch (err) {
             console.error('Error starting battle:', err);
         }
@@ -868,7 +855,76 @@ bot.on('callback_query', async (callbackQuery) => {
     bot.answerCallbackQuery(callbackQuery.id).catch(() => { });
 });
 
-// Real-time Score Tracking (Group Mode)
+/**
+ * Executes a 1v1 Battle live in the group chat round by round
+ */
+async function runGroupBattle(battleId, chatId) {
+    const Battle = require('../models/Battle');
+    const Question = require('../models/Question');
+    const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
+    try {
+        const battle = await Battle.findById(battleId);
+        if (!battle) return;
+
+        for (let i = 0; i < battle.questions.length; i++) {
+            const qData = battle.questions[i];
+            const qObj = await Question.findById(qData.questionId);
+            if (!qObj) continue;
+
+            let qTitle = `⚔️ DUEL Round ${i + 1}/5 (${battle.challengerName} 🆚 ${battle.challengedName}):\n${qObj.question}`;
+            if (qTitle.length > 300) qTitle = qTitle.substring(0, 297) + '...';
+
+            const options = qObj.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+            const explanation = qObj.explanation ? (qObj.explanation.length > 200 ? qObj.explanation.substring(0, 197) + '...' : qObj.explanation) : undefined;
+
+            const pollMsg = await bot.sendPoll(chatId, qTitle, options, {
+                type: 'quiz',
+                correct_option_id: qObj.correctIndex,
+                is_anonymous: false,
+                open_period: 15,
+                explanation: explanation
+            });
+
+            const pollId = (pollMsg.poll && pollMsg.poll.id) || pollMsg.poll_id || String(pollMsg.message_id);
+            battle.pollIds.set(pollId, String(i));
+            await battle.save();
+
+            // Wait 15s poll time + 2s intermission before next round
+            await delay(17000);
+        }
+
+        // Fetch refreshed battle to get final scores
+        const finalBattle = await Battle.findById(battleId);
+        const p1Score = finalBattle.challengerScore;
+        const p2Score = finalBattle.challengedScore;
+
+        let resultText = `🏆 *DUEL FINISHED! FINAL SCOREBOARD* 🏆\n\n` +
+            `⚔️ *${finalBattle.challengerName}* [ *${p1Score}* ] 🆚 *${finalBattle.challengedName}* [ *${p2Score}* ]\n\n`;
+
+        if (p1Score > p2Score) {
+            resultText += `🥇 Winner: *${finalBattle.challengerName}*! 🎉👑 (+${p1Score} Points)\n` +
+                          `👏 Tough fight by *${finalBattle.challengedName}*! (+${p2Score} Points)`;
+        } else if (p2Score > p1Score) {
+            resultText += `🥇 Winner: *${finalBattle.challengedName}*! 🎉👑 (+${p2Score} Points)\n` +
+                          `👏 Tough fight by *${finalBattle.challengerName}*! (+${p1Score} Points)`;
+        } else {
+            resultText += `🤝 It's a DRAW! Both warriors scored ${p1Score}/5! ✨`;
+        }
+
+        resultText += `\n\n💬 *Want to challenge the winner or battle a friend?*\nType \`/challenge\` in this group now! 🚀`;
+
+        await bot.sendMessage(chatId, resultText, { parse_mode: 'Markdown' });
+
+        finalBattle.status = 'COMPLETED';
+        await finalBattle.save();
+
+    } catch (err) {
+        console.error('Error running group battle:', err);
+    }
+}
+
+// Real-time Score Tracking (Group Mode & Duels)
 bot.on('poll_answer', async (answer) => {
     const pollId = answer.poll_id;
     const userId = answer.user.id;
@@ -880,16 +936,43 @@ bot.on('poll_answer', async (answer) => {
 
     try {
         const QuizSession = require('../models/QuizSession');
-        const User = require('../models/User');
         const Battle = require('../models/Battle');
-        const Question = require('../models/Question');
 
         const today = new Date().toISOString().split('T')[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-        // --- A. CHECK FOR GROUP QUIZ SESSION ---
-        const session = await QuizSession.findOne({ isActive: true, 'questions.pollId': pollId });
+        // --- A. CHECK FOR LIVE 1v1 BATTLE ---
+        const battle = await Battle.findOne({ status: 'ACCEPTED', [`pollIds.${pollId}`]: { $exists: true } });
+        if (battle) {
+            const isChallenger = battle.challengerId === userId.toString();
+            const isChallenged = battle.challengedId === userId.toString();
 
+            // STRICT: Non-duelist spectator votes are completely ignored!
+            if (!isChallenger && !isChallenged) {
+                return;
+            }
+
+            const roundIndexStr = battle.pollIds.get(pollId);
+            const roundIndex = parseInt(roundIndexStr, 10) || 0;
+            const currentQ = battle.questions[roundIndex];
+            const isCorrect = currentQ && selectedOption === currentQ.correctIndex;
+
+            if (isCorrect) {
+                if (isChallenger) {
+                    battle.challengerScore += 1;
+                } else if (isChallenged) {
+                    battle.challengedScore += 1;
+                }
+                await battle.save();
+            }
+
+            // Only update stats for the two active duelists
+            await updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, 'Duel', today, yesterday);
+            return;
+        }
+
+        // --- B. CHECK FOR GROUP QUIZ SESSION ---
+        const session = await QuizSession.findOne({ isActive: true, 'questions.pollId': pollId });
         if (session) {
             const question = session.questions.find(q => q.pollId === pollId);
             if (!question) return;
@@ -904,7 +987,6 @@ bot.on('poll_answer', async (answer) => {
                     telegramId: userId.toString()
                 };
                 userScore.score += 1;
-                // Ensure telegramId is set even if not present in existing record
                 userScore.telegramId = userId.toString();
                 session.scores.set(userId.toString(), userScore);
                 await session.save();
@@ -914,59 +996,10 @@ bot.on('poll_answer', async (answer) => {
             return;
         }
 
-        // --- B. CHECK FOR 1v1 BATTLE ---
-        const battle = await Battle.findOne({ status: 'ACCEPTED', [`pollIds.${pollId}`]: { $exists: true } });
-        if (battle) {
-            const isChallenger = battle.challengerId === userId.toString();
-            const currentIndex = isChallenger ? battle.challengerIndex : battle.challengedIndex;
-            const currentQ = battle.questions[currentIndex];
-            const isCorrect = selectedOption === currentQ.correctIndex;
-
-            if (isCorrect) {
-                if (isChallenger) battle.challengerScore += 1;
-                else battle.challengedScore += 1;
-            }
-
-            // Move to next question or finish
-            if (currentIndex < 4) {
-                const nextIndex = currentIndex + 1;
-                if (isChallenger) battle.challengerIndex = nextIndex;
-                else battle.challengedIndex = nextIndex;
-
-                const nextQData = battle.questions[nextIndex];
-                const qObj = await Question.findById(nextQData.questionId);
-
-                let truncatedQ = `Round ${nextIndex + 1}/5: ${qObj.question}`;
-                if (truncatedQ.length > 300) truncatedQ = truncatedQ.substring(0, 297) + '...';
-
-                const truncatedOptions = qObj.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
-
-                const nextPoll = await bot.sendPoll(userId, truncatedQ, truncatedOptions, {
-                    type: 'quiz',
-                    correct_option_id: qObj.correctIndex,
-                    is_anonymous: false,
-                    open_period: 20
-                });
-
-                const nextPollId = (nextPoll.poll && nextPoll.poll.id) || nextPoll.poll_id || String(nextPoll.message_id);
-                battle.pollIds.set(nextPollId, userId.toString());
-            } else {
-                if (isChallenger) battle.challengerFinished = true;
-                else battle.challengedFinished = true;
-                bot.sendMessage(userId, "🏁 You have finished your duel! Waiting for your opponent...");
-            }
-
-            await battle.save();
-
-            // Check if both finished to announce winner
-            if (battle.challengerFinished && battle.challengedFinished) {
-                let resultText = `🏆 *DUEL RESULTS!* 🏆\n\n` +
-                    `*${battle.challengerName}* vs *${battle.challengedName}*\n\n` +
-                    `📊 Score: ${battle.challengerScore} - ${battle.challengedScore}\n\n`;
-
-                if (battle.challengerScore > battle.challengedScore) {
-                    resultText += `🥇 Winner: *${battle.challengerName}*! 🎉`;
-                } else if (battle.challengedScore > battle.challengerScore) {
+    } catch (err) {
+        console.error('Error processing poll answer:', err);
+    }
+});.challengerScore) {
                     resultText += `🥇 Winner: *${battle.challengedName}*! 🎉`;
                 } else {
                     resultText += `🤝 It's a DRAW! Well played both. ✨`;
