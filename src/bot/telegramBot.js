@@ -931,30 +931,38 @@ async function runGroupBattle(battleId, chatId) {
         if (!battle) return;
 
         for (let i = 0; i < battle.questions.length; i++) {
-            const qData = battle.questions[i];
-            const qObj = await Question.findById(qData.questionId);
-            if (!qObj) continue;
+            try {
+                const qData = battle.questions[i];
+                const qObj = await Question.findById(qData.questionId);
+                if (!qObj) continue;
 
-            let qTitle = `⚔️ DUEL Round ${i + 1}/5 (${battle.challengerName} 🆚 ${battle.challengedName}):\n${qObj.question}`;
-            if (qTitle.length > 300) qTitle = qTitle.substring(0, 297) + '...';
+                let qTitle = `⚔️ DUEL Round ${i + 1}/5 (${battle.challengerName} 🆚 ${battle.challengedName}):\n${qObj.question}`;
+                if (qTitle.length > 300) qTitle = qTitle.substring(0, 297) + '...';
 
-            const options = qObj.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
-            const explanation = qObj.explanation ? (qObj.explanation.length > 200 ? qObj.explanation.substring(0, 197) + '...' : qObj.explanation) : undefined;
+                const options = qObj.options.map(opt => opt.length > 100 ? opt.substring(0, 97) + '...' : opt);
+                const explanation = qObj.explanation ? (qObj.explanation.length > 200 ? qObj.explanation.substring(0, 197) + '...' : qObj.explanation) : undefined;
 
-            const pollMsg = await bot.sendPoll(chatId, qTitle, options, {
-                type: 'quiz',
-                correct_option_id: qObj.correctIndex,
-                is_anonymous: false,
-                open_period: 15,
-                explanation: explanation
-            });
+                const pollMsg = await bot.sendPoll(chatId, qTitle, options, {
+                    type: 'quiz',
+                    correct_option_id: qObj.correctIndex,
+                    is_anonymous: false,
+                    open_period: 15,
+                    explanation: explanation
+                });
 
-            const pollId = (pollMsg.poll && pollMsg.poll.id) || pollMsg.poll_id || String(pollMsg.message_id);
-            battle.pollIds.set(pollId, String(i));
-            await battle.save();
+                const pollId = (pollMsg.poll && pollMsg.poll.id) || pollMsg.poll_id || String(pollMsg.message_id);
 
-            // Wait 15s poll time + 2s intermission before next round
-            await delay(17000);
+                // Atomic update to avoid VersionError race condition
+                await Battle.findByIdAndUpdate(battleId, {
+                    $set: { [`pollIds.${pollId}`]: String(i) }
+                });
+
+                // Wait 15s poll time + 2s intermission before next round
+                await delay(17000);
+            } catch (roundErr) {
+                console.error(`Error in battle round ${i + 1}:`, roundErr);
+                await delay(3000);
+            }
         }
 
         // Fetch refreshed battle to get final scores
@@ -979,11 +987,11 @@ async function runGroupBattle(battleId, chatId) {
 
         await bot.sendMessage(chatId, resultText, { parse_mode: 'Markdown' });
 
-        finalBattle.status = 'COMPLETED';
-        await finalBattle.save();
+        await Battle.findByIdAndUpdate(battleId, { $set: { status: 'COMPLETED' } });
 
     } catch (err) {
         console.error('Error running group battle:', err);
+        await Battle.findByIdAndUpdate(battleId, { $set: { status: 'COMPLETED' } }).catch(() => {});
     }
 }
 
@@ -1007,29 +1015,24 @@ bot.on('poll_answer', async (answer) => {
         // --- A. CHECK FOR LIVE 1v1 BATTLE ---
         const battle = await Battle.findOne({ status: 'ACCEPTED', [`pollIds.${pollId}`]: { $exists: true } });
         if (battle) {
-            const isChallenger = battle.challengerId === userId.toString();
-            const isChallenged = battle.challengedId === userId.toString();
-
-            // STRICT: Non-duelist spectator votes are completely ignored!
-            if (!isChallenger && !isChallenged) {
-                return;
-            }
-
             const roundIndexStr = battle.pollIds.get(pollId);
             const roundIndex = parseInt(roundIndexStr, 10) || 0;
             const currentQ = battle.questions[roundIndex];
             const isCorrect = currentQ && selectedOption === currentQ.correctIndex;
 
+            const isChallenger = battle.challengerId === userId.toString();
+            const isChallenged = battle.challengedId === userId.toString();
+
+            // Update battle score atomically (duelists only for duel scoreboard)
             if (isCorrect) {
                 if (isChallenger) {
-                    battle.challengerScore += 1;
+                    await Battle.findByIdAndUpdate(battle._id, { $inc: { challengerScore: 1 } });
                 } else if (isChallenged) {
-                    battle.challengedScore += 1;
+                    await Battle.findByIdAndUpdate(battle._id, { $inc: { challengedScore: 1 } });
                 }
-                await battle.save();
             }
 
-            // Only update stats for the two active duelists
+            // Everyone in the group can vote and gain personal points!
             await updateUserStats(userId, fullName, username, firstName, lastName, isCorrect, 'Duel', today, yesterday);
             return;
         }
