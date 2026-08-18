@@ -89,7 +89,7 @@ const initScheduler = async () => {
     cron.schedule('0 4 * * 3', async () => {
         console.log('Triggering Weekly AI Question Generator...');
         try {
-            const { generateAiQuestions } = require('./aiQuestionGenerator');
+            const { generateAiQuestions } = require('../services/aiQuestionGenerator');
             await generateAiQuestions(15);
         } catch (err) {
             console.error('Error running automated AI question generation:', err.message);

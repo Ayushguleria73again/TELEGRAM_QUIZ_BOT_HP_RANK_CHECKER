@@ -646,7 +646,7 @@ bot.on('callback_query', async (callbackQuery) => {
                     is_anonymous: false,
                     open_period: 20
                 });
-                return poll.poll_id;
+                return (poll.poll && poll.poll.id) || poll.poll_id || String(poll.message_id);
             };
 
             const p1Id = await sendBattlePoll(challengerId, qObj.question, qObj.options, qObj.correctIndex, 1);
@@ -675,6 +675,97 @@ bot.on('callback_query', async (callbackQuery) => {
         }).catch(err => {
             if (!err.message.includes('message is not modified')) console.error('Error editing leaderboard menu:', err.message);
         });
+    } else if (data.startsWith('flag_q_')) {
+        const qId = data.replace('flag_q_', '');
+        try {
+            const q = await Question.findById(qId);
+            if (!q) {
+                return bot.answerCallbackQuery(callbackQuery.id, { text: "Question not found." });
+            }
+
+            q.flagCount = (q.flagCount || 0) + 1;
+            if (q.flagCount >= 2) {
+                q.isFlagged = true; // Auto Quarantine
+            }
+            await q.save();
+
+            bot.answerCallbackQuery(callbackQuery.id, { text: "🚩 Thank you! Issue reported to Admin." });
+
+            if (ADMIN_ID) {
+                const adminMsg = `🚩 *Question Reported by User*\n\n` +
+                    `*Q:* ${q.question}\n` +
+                    `*Total Flags:* ${q.flagCount}\n` +
+                    `*Auto-Quarantined:* ${q.isFlagged ? 'YES 🛑 (Removed from Quiz Pool)' : 'NO ⏳'}`;
+                bot.sendMessage(ADMIN_ID, adminMsg, { parse_mode: 'Markdown' }).catch(() => {});
+            }
+        } catch (err) {
+            console.error('Error handling flag_q:', err.message);
+        }
+        return;
+    } else if (data.startsWith('aiaudit_q_')) {
+        const qId = data.replace('aiaudit_q_', '');
+        const messageId = message.message_id;
+        bot.answerCallbackQuery(callbackQuery.id, { text: "🤖 AI Reviewer Agent auditing question..." });
+        bot.editMessageText(`🤖 *AI Reviewer Agent auditing question... Please wait!*`, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {});
+
+        try {
+            const { auditSingleQuestionWithAi } = require('../services/aiQuestionGenerator');
+            const res = await auditSingleQuestionWithAi(qId);
+
+            if (res.status === 'FIXED') {
+                const report = `🤖 *AI Auto-Corrected & Restored!*\n\n` +
+                    `*Q:* ${res.question.question}\n` +
+                    `✅ *Correct Answer:* ${res.question.options[res.question.correctIndex]}\n` +
+                    `ℹ️ *Explanation:* ${res.question.explanation}\n\n` +
+                    `🛠️ *Audit Notes:* ${res.changesMade}\n\n` +
+                    `✅ *Status:* Factually verified & restored to active quiz pool! 🚀`;
+
+                bot.editMessageText(report, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {
+                    bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
+                });
+            } else {
+                const report = `⚠️ *AI Recommendation: DELETE QUESTION!*\n\n` +
+                    `*Q:* ${res.question.question}\n` +
+                    `❌ *Reason:* ${res.reason}\n\n` +
+                    `Tap below to delete this question:`;
+
+                const opts = {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "🗑️ Confirm Delete Question", callback_data: `delete_q_${res.question._id}` }]
+                        ]
+                    }
+                };
+
+                bot.editMessageText(report, { chatId, message_id: messageId, ...opts }).catch(() => {
+                    bot.sendMessage(chatId, report, opts);
+                });
+            }
+        } catch (err) {
+            bot.sendMessage(chatId, `❌ AI Audit Error: ${err.message}`);
+        }
+        return;
+    } else if (data.startsWith('unflag_')) {
+        const qId = data.replace('unflag_', '');
+        try {
+            await Question.updateOne({ _id: qId }, { isFlagged: false, flagCount: 0 });
+            bot.answerCallbackQuery(callbackQuery.id, { text: "✅ Question restored to active pool!" });
+            bot.editMessageText(`✅ *Question Approved & Restored to Active Pool!*`, { chatId, message_id: message.message_id, parse_mode: 'Markdown' }).catch(() => {});
+        } catch (err) {
+            console.error('Error unflagging question:', err.message);
+        }
+        return;
+    } else if (data.startsWith('delete_q_')) {
+        const qId = data.replace('delete_q_', '');
+        try {
+            await Question.deleteOne({ _id: qId });
+            bot.answerCallbackQuery(callbackQuery.id, { text: "🗑️ Question permanently deleted!" });
+            bot.editMessageText(`🗑️ *Question Deleted Permanently.*`, { chatId, message_id: message.message_id, parse_mode: 'Markdown' }).catch(() => {});
+        } catch (err) {
+            console.error('Error deleting question:', err.message);
+        }
+        return;
     }
 
     bot.answerCallbackQuery(callbackQuery.id).catch(() => { });
@@ -760,7 +851,8 @@ bot.on('poll_answer', async (answer) => {
                     open_period: 20
                 });
 
-                battle.pollIds.set(nextPoll.poll_id, userId.toString());
+                const nextPollId = (nextPoll.poll && nextPoll.poll.id) || nextPoll.poll_id || String(nextPoll.message_id);
+                battle.pollIds.set(nextPollId, userId.toString());
             } else {
                 if (isChallenger) battle.challengerFinished = true;
                 else battle.challengedFinished = true;
@@ -882,100 +974,5 @@ async function updateUserStats(userId, fullName, username, firstName, lastName, 
 
     await user.save();
 }
-
-// Callback handler for reporting & unflagging questions
-bot.on('callback_query', async (query) => {
-    const data = query.data || '';
-    const chatId = query.message.chat.id;
-
-    if (data.startsWith('flag_q_')) {
-        const qId = data.replace('flag_q_', '');
-        try {
-            const q = await Question.findById(qId);
-            if (!q) {
-                return bot.answerCallbackQuery(query.id, { text: "Question not found." });
-            }
-
-            q.flagCount = (q.flagCount || 0) + 1;
-            if (q.flagCount >= 2) {
-                q.isFlagged = true; // Auto Quarantine
-            }
-            await q.save();
-
-            bot.answerCallbackQuery(query.id, { text: "🚩 Thank you! Issue reported to Admin." });
-
-            if (ADMIN_ID) {
-                const adminMsg = `🚩 *Question Reported by User*\n\n` +
-                    `*Q:* ${q.question}\n` +
-                    `*Total Flags:* ${q.flagCount}\n` +
-                    `*Auto-Quarantined:* ${q.isFlagged ? 'YES 🛑 (Removed from Quiz Pool)' : 'NO ⏳'}`;
-                bot.sendMessage(ADMIN_ID, adminMsg, { parse_mode: 'Markdown' }).catch(() => {});
-            }
-        } catch (err) {
-            console.error('Error handling flag_q:', err.message);
-        }
-    } else if (data.startsWith('aiaudit_q_')) {
-        const qId = data.replace('aiaudit_q_', '');
-        const messageId = query.message.message_id;
-        bot.answerCallbackQuery(query.id, { text: "🤖 AI Reviewer Agent auditing question..." });
-        bot.editMessageText(`🤖 *AI Reviewer Agent auditing question... Please wait!*`, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {});
-
-        try {
-            const { auditSingleQuestionWithAi } = require('../services/aiQuestionGenerator');
-            const res = await auditSingleQuestionWithAi(qId);
-
-            if (res.status === 'FIXED') {
-                const report = `🤖 *AI Auto-Corrected & Restored!*\n\n` +
-                    `*Q:* ${res.question.question}\n` +
-                    `✅ *Correct Answer:* ${res.question.options[res.question.correctIndex]}\n` +
-                    `ℹ️ *Explanation:* ${res.question.explanation}\n\n` +
-                    `🛠️ *Audit Notes:* ${res.changesMade}\n\n` +
-                    `✅ *Status:* Factually verified & restored to active quiz pool! 🚀`;
-
-                bot.editMessageText(report, { chatId, message_id: messageId, parse_mode: 'Markdown' }).catch(() => {
-                    bot.sendMessage(chatId, report, { parse_mode: 'Markdown' });
-                });
-            } else {
-                const report = `⚠️ *AI Recommendation: DELETE QUESTION!*\n\n` +
-                    `*Q:* ${res.question.question}\n` +
-                    `❌ *Reason:* ${res.reason}\n\n` +
-                    `Tap below to delete this question:`;
-
-                const opts = {
-                    parse_mode: 'Markdown',
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: "🗑️ Confirm Delete Question", callback_data: `delete_q_${res.question._id}` }]
-                        ]
-                    }
-                };
-
-                bot.editMessageText(report, { chatId, message_id: messageId, ...opts }).catch(() => {
-                    bot.sendMessage(chatId, report, opts);
-                });
-            }
-        } catch (err) {
-            bot.sendMessage(chatId, `❌ AI Audit Error: ${err.message}`);
-        }
-    } else if (data.startsWith('unflag_')) {
-        const qId = data.replace('unflag_', '');
-        try {
-            await Question.updateOne({ _id: qId }, { isFlagged: false, flagCount: 0 });
-            bot.answerCallbackQuery(query.id, { text: "✅ Question restored to active pool!" });
-            bot.editMessageText(`✅ *Question Approved & Restored to Active Pool!*`, { chatId, message_id: query.message.message_id, parse_mode: 'Markdown' }).catch(() => {});
-        } catch (err) {
-            console.error('Error unflagging question:', err.message);
-        }
-    } else if (data.startsWith('delete_q_')) {
-        const qId = data.replace('delete_q_', '');
-        try {
-            await Question.deleteOne({ _id: qId });
-            bot.answerCallbackQuery(query.id, { text: "🗑️ Question permanently deleted!" });
-            bot.editMessageText(`🗑️ *Question Deleted Permanently.*`, { chatId, message_id: query.message.message_id, parse_mode: 'Markdown' }).catch(() => {});
-        } catch (err) {
-            console.error('Error deleting question:', err.message);
-        }
-    }
-});
 
 module.exports = bot;
