@@ -288,42 +288,129 @@ bot.onText(/\/flag\b(@\w+)?(?:\s+(.+))?/, async (msg, match) => {
     }
 });
 
-// Battle Mode: Challenge Command
-bot.onText(/\/challenge(@\w+)?\s+(.+)/, async (msg, match) => {
+// Helper: Escape regex special characters to prevent regex crashes with names like "Aspirant.."
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Battle Mode: Challenge Command (supports @username, Display Name, Reply-to-message, or empty /challenge)
+bot.onText(/\/challenge\b(@\w+)?(?:\s+(.+))?/i, async (msg, match) => {
     if (checkRateLimit(msg.from.id)) return;
     const chatId = msg.chat.id;
     const challengerId = msg.from.id.toString();
     const challengerName = (msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : '')).trim();
-    const targetUsername = match[2].replace('@', '').trim();
+    const queryStr = match[2] ? match[2].trim() : '';
 
     const User = require('../models/User');
-    const Battle = require('../models/Battle');
 
     try {
-        const challengedUser = await User.findOne({ username: new RegExp(`^${targetUsername}$`, 'i') });
-        if (!challengedUser) {
-            return bot.sendMessage(chatId, `❌ I couldn't find *${targetUsername}*. They must have used the bot at least once to be challenged!`, { parse_mode: 'Markdown' });
+        let challengedUser = null;
+        let challengedDisplayName = '';
+
+        // 1. Check if user is replying to someone's message in the group
+        if (msg.reply_to_message && msg.reply_to_message.from) {
+            const repliedFrom = msg.reply_to_message.from;
+            if (repliedFrom.is_bot) {
+                return bot.sendMessage(chatId, "🤖 You cannot duel a bot! Choose a human opponent. 😉");
+            }
+            const repliedId = repliedFrom.id.toString();
+            challengedUser = await User.findOne({ telegramId: repliedId });
+            if (!challengedUser) {
+                // Auto-register user in DB if active in chat
+                challengedUser = new User({
+                    telegramId: repliedId,
+                    firstName: repliedFrom.first_name || 'Player',
+                    lastName: repliedFrom.last_name || '',
+                    username: repliedFrom.username || ''
+                });
+                await challengedUser.save();
+            }
+            challengedDisplayName = (challengedUser.firstName + (challengedUser.lastName ? ` ${challengedUser.lastName}` : '')).trim();
+        } else if (queryStr) {
+            // 2. Query specified (e.g. /challenge Aspirant.. or /challenge @username)
+            const cleanQuery = queryStr.replace(/^@/, '').trim();
+            const escaped = escapeRegex(cleanQuery);
+
+            // A. Exact username match (case-insensitive)
+            challengedUser = await User.findOne({ username: new RegExp(`^${escaped}$`, 'i') });
+
+            // B. Exact First Name match (case-insensitive)
+            if (!challengedUser) {
+                challengedUser = await User.findOne({ firstName: new RegExp(`^${escaped}$`, 'i') });
+            }
+
+            // C. Full Name match across active users
+            if (!challengedUser) {
+                const candidateUsers = await User.find({}, 'telegramId firstName lastName username');
+                challengedUser = candidateUsers.find(u => {
+                    const full = (u.firstName + (u.lastName ? ` ${u.lastName}` : '')).trim().toLowerCase();
+                    return full === cleanQuery.toLowerCase() || u.firstName?.trim().toLowerCase() === cleanQuery.toLowerCase();
+                });
+            }
+
+            // D. Loose substring/prefix match
+            if (!challengedUser) {
+                challengedUser = await User.findOne({
+                    $or: [
+                        { firstName: new RegExp(escaped, 'i') },
+                        { username: new RegExp(escaped, 'i') },
+                        { lastName: new RegExp(escaped, 'i') }
+                    ]
+                });
+            }
+
+            if (!challengedUser) {
+                return bot.sendMessage(
+                    chatId,
+                    `❌ I couldn't find *${queryStr}* in our player records.\n\n` +
+                    `💡 *Tips to challenge:*\n` +
+                    `• *Reply* directly to any message by the user with \`/challenge\`\n` +
+                    `• Or use their exact Telegram handle: \`/challenge @username\``,
+                    { parse_mode: 'Markdown' }
+                );
+            }
+
+            challengedDisplayName = (challengedUser.firstName + (challengedUser.lastName ? ` ${challengedUser.lastName}` : '')).trim();
+        } else {
+            // 3. No query and no reply provided -> Auto-match with a random active player from DB!
+            const randomOpponents = await User.aggregate([
+                { $match: { telegramId: { $ne: challengerId } } },
+                { $sample: { size: 1 } }
+            ]);
+
+            if (randomOpponents && randomOpponents.length > 0) {
+                challengedUser = randomOpponents[0];
+                challengedDisplayName = (challengedUser.firstName + (challengedUser.lastName ? ` ${challengedUser.lastName}` : '')).trim();
+            } else {
+                challengedDisplayName = "ANYONE in this group";
+            }
         }
 
-        if (challengedUser.telegramId === challengerId) {
+        if (challengedUser && challengedUser.telegramId === challengerId) {
             return bot.sendMessage(chatId, "🤝 You can't challenge yourself! Find a worthy opponent. 😉");
         }
+
+        const handleSuffix = (challengedUser && challengedUser.username) ? ` (@${challengedUser.username})` : '';
+        const targetIdParam = challengedUser ? challengedUser.telegramId : 'any';
 
         const options = {
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [[
-                    { text: "✅ Accept", callback_data: `battle_accept_${challengerId}_${challengedUser.telegramId}` },
-                    { text: "❌ Decline", callback_data: `battle_decline_${challengerId}_${challengedUser.telegramId}` }
+                    { text: "⚔️ Accept Duel", callback_data: `battle_accept_${challengerId}_${targetIdParam}` },
+                    { text: "❌ Decline", callback_data: `battle_decline_${challengerId}_${targetIdParam}` }
                 ]]
             }
         };
 
-        const inviteMsg = `⚔️ *QUIZ DUEL CHALLENGE!* ⚔️\n\n` +
-            `*${challengerName}* has challenged *${challengedUser.firstName}* (@${targetUsername}) to a 1v1 HP Rank Battle!\n\n` +
-            `🔹 Questions: 5\n` +
-            `🔹 Category: Random Mix\n\n` +
-            `*${challengedUser.firstName}*, do you accept the challenge?`;
+        const isRandomMatch = !queryStr && (!msg.reply_to_message || !msg.reply_to_message.from);
+        const headerTitle = isRandomMatch ? "🎲 *RANDOM MATCHMAKING DUEL!* ⚔️" : "⚔️ *QUIZ DUEL CHALLENGE!* ⚔️";
+
+        const inviteMsg = `${headerTitle}\n\n` +
+            `*${challengerName}* has initiated a 1v1 HP Rank Battle against *${challengedDisplayName}*${handleSuffix}!\n\n` +
+            `🔹 Questions: 5 (Fast-paced HP GK)\n` +
+            `🔹 Time per round: 20s\n\n` +
+            `*${challengedDisplayName}* (or anyone in this group), tap below to start the duel!`;
 
         bot.sendMessage(chatId, inviteMsg, options);
     } catch (err) {
@@ -590,9 +677,16 @@ bot.on('callback_query', async (callbackQuery) => {
         const action = parts[1];
         const challengerId = parts[2];
         const challengedId = parts[3];
+        const acceptingUserId = callbackQuery.from.id.toString();
 
-        if (callbackQuery.from.id.toString() !== challengedId) {
-            return bot.answerCallbackQuery(callbackQuery.id, { text: "⚠️ Only the challenged person can respond!", show_alert: true });
+        // Prevent challenger from accepting/declining their own match
+        if (acceptingUserId === challengerId) {
+            return bot.answerCallbackQuery(callbackQuery.id, { text: "⚠️ You cannot accept your own challenge! Wait for an opponent to join.", show_alert: true });
+        }
+
+        // If specific user was challenged and action is decline, only they can decline
+        if (challengedId !== 'any' && challengedId !== acceptingUserId && action === 'decline') {
+            return bot.answerCallbackQuery(callbackQuery.id, { text: "⚠️ Only the challenged player can decline this match.", show_alert: true });
         }
 
         const Battle = require('../models/Battle');
@@ -608,11 +702,14 @@ bot.on('callback_query', async (callbackQuery) => {
             const questions = await Question.aggregate([{ $sample: { size: 5 } }]);
             const questionData = questions.map(q => ({ questionId: q._id, correctIndex: q.correctIndex }));
 
+            const actualChallengedId = acceptingUserId;
+            const actualChallengedName = (callbackQuery.from.first_name + (callbackQuery.from.last_name ? ` ${callbackQuery.from.last_name}` : '')).trim();
+
             const battle = new Battle({
                 challengerId,
-                challengerName: "", // We will populate these or use existing info
-                challengedId,
-                challengedName: callbackQuery.from.first_name,
+                challengerName: "",
+                challengedId: actualChallengedId,
+                challengedName: actualChallengedName,
                 groupChatId: chatId,
                 status: 'ACCEPTED',
                 questions: questionData
@@ -624,7 +721,7 @@ bot.on('callback_query', async (callbackQuery) => {
             battle.challengerName = cUser ? cUser.firstName : "Challenger";
             await battle.save();
 
-            await bot.editMessageText("⚔️ *DUEL STARTED!* Check your private messages!", {
+            await bot.editMessageText(`⚔️ *DUEL STARTED!* \n\n*${battle.challengerName}* vs *${actualChallengedName}*\nCheck your private messages to play! 🚀`, {
                 chat_id: chatId,
                 message_id: message.message_id,
                 parse_mode: 'Markdown'
@@ -650,10 +747,10 @@ bot.on('callback_query', async (callbackQuery) => {
             };
 
             const p1Id = await sendBattlePoll(challengerId, qObj.question, qObj.options, qObj.correctIndex, 1);
-            const p2Id = await sendBattlePoll(challengedId, qObj.question, qObj.options, qObj.correctIndex, 1);
+            const p2Id = await sendBattlePoll(actualChallengedId, qObj.question, qObj.options, qObj.correctIndex, 1);
 
             battle.pollIds.set(p1Id, challengerId);
-            battle.pollIds.set(p2Id, challengedId);
+            battle.pollIds.set(p2Id, actualChallengedId);
             await battle.save();
         } catch (err) {
             console.error('Error starting battle:', err);
