@@ -23,6 +23,48 @@ const HP_GK_TOPICS = [
     "Himachal Pradesh Agriculture, Horticulture, Apples, Crops and Soil Types"
 ];
 
+// Cascading model fallback list
+const GEMINI_MODELS = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-flash-latest'
+];
+
+/**
+ * Resilient Gemini API caller with multi-model fallback cascade
+ */
+async function callGeminiApi(prompt, genConfig, timeout = 30000) {
+    if (!GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY is not set in .env file. Please add GEMINI_API_KEY=your_key');
+    }
+
+    let lastError = null;
+    for (const model of GEMINI_MODELS) {
+        try {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+            const response = await axios.post(apiUrl, {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: genConfig
+            }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout
+            });
+
+            if (response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return response.data.candidates[0].content.parts[0].text;
+            }
+        } catch (err) {
+            lastError = err;
+            const errMsg = err.response?.data?.error?.message || err.message;
+            console.warn(`[Gemini API] Model ${model} failed (${errMsg}). Trying next fallback model...`);
+        }
+    }
+
+    throw new Error(`All Gemini models failed. Last error: ${lastError?.message}`);
+}
+
 /**
  * Safely parses JSON arrays from AI responses, handling raw JSON, markdown code fences, or wrapped JSON objects.
  */
@@ -59,11 +101,6 @@ const safeParseJsonArray = (text) => {
 const generateAiQuestions = async (count = 10) => {
     console.log(`🤖 Starting AI Question Generator for ${count} questions...`);
 
-    if (!GEMINI_API_KEY) {
-        console.warn('⚠️ GEMINI_API_KEY is missing in .env! Cannot call Gemini API.');
-        throw new Error('GEMINI_API_KEY is not set in .env file. Please add GEMINI_API_KEY=your_key');
-    }
-
     const randomTopic = HP_GK_TOPICS[Math.floor(Math.random() * HP_GK_TOPICS.length)];
 
     // Sample 25 existing questions to pass as negative constraints to AI
@@ -95,24 +132,8 @@ Output JSON format:
 ]`;
 
     try {
-        let response;
         const genConfig = { temperature: 0.7, topP: 0.95, maxOutputTokens: 4096, responseMimeType: "application/json" };
-        try {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
-            response = await axios.post(apiUrl, {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: genConfig
-            }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
-        } catch (primaryErr) {
-            console.warn('gemini-3.6-flash primary endpoint failed, trying gemini-flash-latest fallback...');
-            const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-            response = await axios.post(fallbackUrl, {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: genConfig
-            }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
-        }
-
-        const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const rawText = await callGeminiApi(prompt, genConfig, 35000);
         const generatedQuestions = safeParseJsonArray(rawText);
         console.log(`🤖 AI Generator Agent created ${generatedQuestions.length} candidate questions.`);
 
@@ -144,23 +165,8 @@ Return JSON format:
   }
 ]`;
 
-            let revResponse;
             const revConfig = { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096, responseMimeType: "application/json" };
-            try {
-                const revApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
-                revResponse = await axios.post(revApiUrl, {
-                    contents: [{ parts: [{ text: reviewerPrompt }] }],
-                    generationConfig: revConfig
-                }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
-            } catch (revPrimaryErr) {
-                const revFallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-                revResponse = await axios.post(revFallbackUrl, {
-                    contents: [{ parts: [{ text: reviewerPrompt }] }],
-                    generationConfig: revConfig
-                }, { headers: { 'Content-Type': 'application/json' }, timeout: 35000 });
-            }
-
-            const revRawText = revResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const revRawText = await callGeminiApi(reviewerPrompt, revConfig, 35000);
             const audited = safeParseJsonArray(revRawText);
             verifiedQuestions = audited.filter(q => q.approved !== false);
             console.log(`✅ AI Reviewer Agent approved ${verifiedQuestions.length}/${generatedQuestions.length} factually verified questions.`);
@@ -198,44 +204,55 @@ Return JSON format:
 
         // Also append new questions to local hp_gk_questions.json file for persistent backup
         if (newValidQuestions.length > 0) {
-            const jsonPath = path.join(__dirname, '..', '..', 'hp_gk_questions.json');
-            if (fs.existsSync(jsonPath)) {
-                try {
-                    const localData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-                    localData.push(...newValidQuestions);
-                    fs.writeFileSync(jsonPath, JSON.stringify(localData, null, 2), 'utf8');
-                    console.log(`📁 Appended ${newValidQuestions.length} new questions to hp_gk_questions.json`);
-                } catch (fileErr) {
-                    console.error('Error updating local JSON file:', fileErr.message);
+            try {
+                const jsonPath = path.join(__dirname, '../data/hp_gk_questions.json');
+                if (fs.existsSync(jsonPath)) {
+                    const existingJson = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                    const combined = [...existingJson, ...newValidQuestions.map(q => ({
+                        question: q.question,
+                        options: q.options,
+                        correctIndex: q.correctIndex,
+                        explanation: q.explanation,
+                        category: q.category
+                    }))];
+                    fs.writeFileSync(jsonPath, JSON.stringify(combined, null, 2));
+                    console.log(`💾 Saved ${newValidQuestions.length} new questions to persistent backup: ${jsonPath}`);
                 }
+            } catch (fsErr) {
+                console.error('Could not save to local JSON file:', fsErr.message);
             }
         }
 
         const totalQuestions = await Question.countDocuments();
-        console.log(`✅ AI Generation Complete. Added: ${addedCount}, Skipped duplicates: ${skippedCount}. Total in DB: ${totalQuestions}`);
+        console.log(`✨ AI Generation Summary: Added=${addedCount}, SkippedDuplicates=${skippedCount}, TotalDBQuestions=${totalQuestions}`);
 
-        return { addedCount, skippedCount, totalQuestions };
+        return {
+            addedCount,
+            skippedCount,
+            totalQuestions
+        };
+
     } catch (err) {
-        console.error('❌ AI Question Generator Error:', err.message);
+        console.error('Error generating AI questions:', err);
         throw err;
     }
 };
 
 /**
- * Uses AI Reviewer Agent to audit, fact-check, and auto-correct or recommend deletion for a single reported question.
- * @param {string} questionId MongoDB Question _id
+ * Single-Question AI Fact-Checker and Auto-Correction (Admin Quarantined Audit Feature)
+ * @param {string} questionId MongoDB ObjectId string of quarantined question
  */
 const auditSingleQuestionWithAi = async (questionId) => {
     const q = await Question.findById(questionId);
-    if (!q) throw new Error('Question not found in database.');
+    if (!q) throw new Error('Question not found');
 
-    const prompt = `You are a Senior Chief Examiner & Auditor for Himachal Pradesh Public Service Commission (HPPSC / HAS exams).
-Audit this reported HP GK question for 100% factual accuracy:
+    const prompt = `You are the Chief Fact-Checker for HPPSC (Himachal Pradesh Public Service Commission).
+A user has reported a possible issue/error in this Himachal Pradesh GK question:
 
 Question: "${q.question}"
 Options: ${JSON.stringify(q.options)}
-Marked Correct Option: "${q.options[q.correctIndex]}" (Index: ${q.correctIndex})
-Explanation: "${q.explanation}"
+Currently Marked Correct Option: "${q.options[q.correctIndex]}" (Index: ${q.correctIndex})
+Current Explanation: "${q.explanation}"
 
 Instructions:
 1. Verify if the question statement is factually valid regarding Himachal Pradesh.
@@ -256,22 +273,7 @@ Instructions:
    }`;
 
     const genConfig = { temperature: 0.2, topP: 0.8, maxOutputTokens: 2048, responseMimeType: "application/json" };
-    let response;
-    try {
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
-        response = await axios.post(apiUrl, {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: genConfig
-        }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
-    } catch (err) {
-        const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-        response = await axios.post(fallbackUrl, {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: genConfig
-        }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
-    }
-
-    const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const rawText = await callGeminiApi(prompt, genConfig, 30000);
     const auditResult = JSON.parse(rawText);
 
     if (auditResult.isValid) {
