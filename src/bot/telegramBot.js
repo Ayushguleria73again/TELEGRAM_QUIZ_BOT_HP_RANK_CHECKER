@@ -302,8 +302,25 @@ bot.onText(/\/challenge\b(@\w+)?(?:\s+(.+))?/i, async (msg, match) => {
     const queryStr = match[2] ? match[2].trim() : '';
 
     const User = require('../models/User');
+    const Battle = require('../models/Battle');
 
     try {
+        // Concurrency Gate: Only 1 duel can run at a time per group!
+        const activeBattle = await Battle.findOne({
+            groupChatId: chatId.toString(),
+            status: 'ACCEPTED'
+        });
+
+        if (activeBattle) {
+            return bot.sendMessage(
+                chatId,
+                `⚔️ *A 1v1 DUEL IS ALREADY IN PROGRESS!* ⚔️\n\n` +
+                `🔥 *${activeBattle.challengerName}* and *${activeBattle.challengedName}* are currently battling in this arena!\n\n` +
+                `⏳ Please wait ~1 minute for their match to finish before starting a new duel.`,
+                { parse_mode: 'Markdown' }
+            );
+        }
+
         let challengedUser = null;
         let challengedDisplayName = '';
 
@@ -699,6 +716,19 @@ bot.on('callback_query', async (callbackQuery) => {
 
         // --- ACCEPTED ---
         try {
+            // Concurrency Gate: Check if another battle is already in progress
+            const runningBattle = await Battle.findOne({
+                groupChatId: chatId.toString(),
+                status: 'ACCEPTED'
+            });
+
+            if (runningBattle) {
+                return bot.answerCallbackQuery(callbackQuery.id, {
+                    text: `⚠️ A 1v1 duel between ${runningBattle.challengerName} and ${runningBattle.challengedName} is already running in this group! Please wait for it to finish.`,
+                    show_alert: true
+                });
+            }
+
             const questions = await Question.aggregate([{ $sample: { size: 5 } }]);
             const questionData = questions.map(q => ({ questionId: q._id, correctIndex: q.correctIndex }));
 
